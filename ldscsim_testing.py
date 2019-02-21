@@ -1,3 +1,8 @@
+import hail as hl
+import numpy as np
+import matplotlib.pyplot as plt
+
+
 def check_sim_h2(mt):
     return mt.aggregate_cols(hl.agg.stats(mt.__y_no_noise)).stdev**2
     
@@ -35,3 +40,29 @@ def test_suite(mt, genotype, popstrat):
     for sim_i,sim_mt in enumerate(sim_mt_ls):
         obs_h2_ls.append(np.round(sim_mt.aggregate_cols(hl.agg.stats(sim_mt['__y_no_noise']).stdev**2),4))
     print('\nExpected h2s: {} \nObserved h2s: {}'.format(sim_h2_ls, obs_h2_ls)) 
+
+
+# Check expected vs. observed h2
+n_reps = 3
+h2_exp = np.asarray([np.arange(0,1.1,0.1)]*n_reps)
+h2_obs1 = h2_exp*0
+h2_obs2 = h2_exp*0
+pi=0.1
+for i in range(n_reps):
+    for j in range(1,h2_exp.shape[1]):
+        sim_mt1 = simulate(mt,mt.genotype, h2=h2_exp[i,j],pi=pi)
+        h2_obs1_temp = check_sim_h2(sim_mt1)
+        print('Sim h2: {}'.format(h2_obs1_temp))
+        h2_obs1[i,j] = h2_obs1_temp
+        
+fig,ax = plt.subplots(figsize=(6,4))
+h2_mean = np.mean(h2_obs1,axis=0)
+h2_std = np.std(h2_obs1,axis=0)
+ax.plot([0,1],[0,1],'k--',lw=2)
+ax.plot(h2_exp[0,:],h2_obs_mean,c=[1,0,0],ls='.-')
+ax.fill_between(h2_exp[0,:],h2_mean+2*h2_std,h2_mean-2*h2_std,color=[1,0,0],alpha=0.2)
+plt.title('Spike and slab w/ pi = {}\n(reps per h2 value = {})'.format(pi, reps))
+plt.xlabel('Expected h2')
+plt.ylabel('Observed h2')
+fig=plt.gcf()
+fig.set_size_inches(6,4)
