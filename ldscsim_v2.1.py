@@ -93,7 +93,8 @@ def make_betas(mt, h2, pi=1, annot=None):
         print('\rSimulating annotation-informed betas w/ h2 = {}'.format(h2))
         mt1 = mt._annotate_all(row_exprs={'__annot':annot},
                               global_exprs={'__h2':h2})
-        return mt1.annotate_rows(__beta = hl.rand_norm(0, mt1.__annot/hl.agg.sum(mt1.__annot)* hl.sqrt(h2 / M)))
+        annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__annot))
+        return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot/annot_sum*h2)))
     else:
         print('Simulating betas using {} model w/ h2 = {}'.format(('infinitesimal' if pi is 1 else 'spike & slab'),h2))
         mt1 = mt.annotate_globals(__h2 = h2, __pi = pi)
