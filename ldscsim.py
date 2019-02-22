@@ -3,11 +3,7 @@
 """
 Created on Fri Feb 15 08:25:59 2019
 
-Version 2.1 of ldsc simulation framework.
-
-Pros:   Each method can be run independently of the simulate() method.
-Cons:   Adds (unnecessary?) code.
-        Requires re-annotating field which adds to runtime.
+ldsc simulation framework
 
 @author: nbaya
 """
@@ -57,7 +53,7 @@ def print_header(h2, pi, annot, popstrat, popstrat_s2, path_to_save):
                              expr_int64,
                              expr_float32,
                              expr_float64))
-def annotate_w_temp_fields(mt, genotype, h2, pi, annot, popstrat, popstrat_s2):
+def annotate_w_temp_fields(mt, genotype, h2, pi=1, annot=None, popstrat=None, popstrat_s2=1):
     '''Annotate mt with temporary fields of simulation parameters'''
     if annot is None and popstrat is None: #Infinitesimal/SpikeSlab
         mt1 = mt._annotate_all(entry_exprs={'__gt_temp':genotype},
@@ -129,7 +125,7 @@ def add_pop_strat(mt, y, popstrat, popstrat_s2=1):
     mt1 = mt1.annotate_globals(__popstrat_s2 = popstrat_s2)
     popstrat_stats = mt1.aggregate_cols(hl.agg.stats(mt1.__popstrat), _localize=True)
     mt2 = mt1.annotate_cols(__norm_popstrat = (mt1.__popstrat-popstrat_stats.mean)/popstrat_stats.stdev)
-    mt3 = mt2.annotate_cols(__y_w_popstrat = mt2.__y + mt2.__norm_popstrat*mt2.__popstrat_s2)
+    mt3 = mt2.annotate_cols(__y_w_popstrat = mt2.__y + mt2.__norm_popstrat*hl.sqrt(mt2.__popstrat_s2))
     y_w_popstrat_stats = mt3.aggregate_cols(hl.agg.stats(mt3.__y_w_popstrat))
     return mt3.annotate_cols(__y_w_popstrat = (mt3.__y_w_popstrat-y_w_popstrat_stats.mean)/y_w_popstrat_stats.stdev)
 
@@ -215,7 +211,8 @@ def add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,annot=None,popstra
 @typecheck(mt=MatrixTable, 
            genotype=oneof(expr_int32,
                           expr_int64, 
-                          expr_float32, expr_float64),
+                          expr_float32, 
+                          expr_float64),
            h2=oneof(float,int),
            pi=oneof(float,int),
            annot=oneof(nullable(expr_int32),
