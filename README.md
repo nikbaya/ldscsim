@@ -5,7 +5,7 @@
 `simulate()` is the method which wraps all other methods in the package. However, all methods are self-contained. For instance, if you just want to calculate simulated phenotypes using betas (SNP effects) generated outside of the `ldscsim` framework, you can use `sim_phenotypes()` independent of `simulate()`.
 <br>
 
-### Model options
+## Model options
 #### Models for SNP effects or "betas"
 - **Infinitesimal Model (stable)**: All SNP effects are drawn from a normal distribution with mean=0, variance=`h2/M`, where `h2` is the desired heritability of the simulated trait and `M` is the number of SNPs in the genotype matrix given given by the user.
 - **Spike & Slab Model (stable)**: SNPs have probability `pi` of being causal. If causal, the SNP effect is drawn from a normal distribution with variance `h2/(M*pi)`. If not causal, the SNP effect is zero.
