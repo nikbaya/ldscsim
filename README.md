@@ -58,4 +58,4 @@ Removes fields with names that have str_expr in them
 <br>
 
 ###### `add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,annot=None,popstrat=None,popstrat_s2=1,path_to_save=None)`
-Annotates mt with description of simulation
+Annotates `mt` with description of simulation
