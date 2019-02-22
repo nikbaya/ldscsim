@@ -16,7 +16,7 @@ After calculating the phenotype by multiplying genotypes by betas and then addin
 <br>
 
 
-### Methods
+## Methods
 ###### `simulate(mt, genotype, h2, pi=1, annot=None, popstrat=None, popstrat_s2=1, path_to_save=None)`
 Simulates phenotypes under various models.
 - **`mt`** (required):  Hail MatrixTable holding all the matrix fields passed as parameters to the model
