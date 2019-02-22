@@ -21,7 +21,12 @@ from datetime import datetime, timedelta
                        nullable(expr_float64)),
            popstrat=oneof(nullable(expr_int32),
                           nullable(expr_float64)),
-           popstrat_s2=oneof(float,int,expr_int32,expr_int64,expr_float32,expr_float64),
+           popstrat_s2=oneof(float,
+                             int,
+                             expr_int32,
+                             expr_int64,
+                             expr_float32,
+                             expr_float64),
            path_to_save=nullable(str))
 def print_header(h2, pi, annot, popstrat, popstrat_s2, path_to_save):
     '''Makes the header for the simulation'''
@@ -219,7 +224,12 @@ def add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,annot=None,popstra
                        nullable(expr_float64)),
            popstrat=oneof(nullable(expr_int32),
                           nullable(expr_float64)),
-           popstrat_s2=oneof(float,int),
+           popstrat_s2=oneof(float,
+                             int,
+                             expr_int32,
+                             expr_int64,
+                             expr_float32,
+                             expr_float64),
            path_to_save=nullable(str))
 def simulate(mt, genotype, h2, pi=1, annot=None, popstrat=None, popstrat_s2 = 1,path_to_save=None):
     ''' Simulates phenotypes. 
