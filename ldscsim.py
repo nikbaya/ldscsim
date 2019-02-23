@@ -140,11 +140,11 @@ def agg_annotations(mt,tau_dict=None,annot_pattern=None):
            is_annot_inf=bool,
            tau_dict=nullable(dict),
            annot_pattern=nullable(str))
-def make_betas(mt, h2, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None):
+def make_betas(mt, h2, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, is_h2_normalized=False):
     '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''        
     M = mt.count_rows()
     if is_annot_inf:
-        print('\rSimulating annotation-informed betas {}'.format('(default tau: 1)' if tau_dict is None else 'using tau dict'))
+        print('\rSimulating {} annotation-informed betas {}'.format('h2_normalized' if is_h2_normalized else '', '(default tau: 1)' if tau_dict is None else 'using tau dict'))
         mt1 = agg_annotations(mt,tau_dict,annot_pattern=annot_pattern)
         annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__annot))
         return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot/annot_sum*h2)))
