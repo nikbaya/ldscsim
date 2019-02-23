@@ -1,5 +1,5 @@
 # ldscsim
-`ldscsim` is a module to simulate phenotypes. It was created to generate phenotypes for testing [`ldsc`], but is extensible to general use.
+`ldscsim` is a module to simulate phenotypes. It was created to generate phenotypes for testing [`ldsc`](https://github.com/bulik/ldsc), but is extensible to general use.
 <br>
 
 ## Getting started
