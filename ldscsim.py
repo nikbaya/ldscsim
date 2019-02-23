@@ -82,6 +82,7 @@ def annotate_w_temp_fields(mt, genotype, h2, pi=1, annot=None, popstrat=None, po
                                              '__popstrat_s2_temp':popstrat_s2})
     return mt1
 
+
 @typecheck(mt=MatrixTable, 
            h2=oneof(float,int),
            pi=oneof(float,int),
@@ -111,7 +112,9 @@ def normalize_genotypes(mt, genotype):
     print('\rNormalizing genotypes...')
     mt1 = mt.annotate_entries(__gt = genotype)
     mt2 = mt1.annotate_rows(__gt_stats = hl.agg.stats(mt1.__gt))
-    return mt2.annotate_entries(__norm_gt = (mt2.__gt-mt2.__gt_stats.mean)/mt2.__gt_stats.stdev)    
+    return mt2.annotate_entries(__norm_gt = (mt2.__gt-mt2.__gt_stats.mean)/mt2.__gt_stats.stdev)  
+
+
 
 @typecheck(mt=MatrixTable, 
            y=oneof(expr_int32,expr_float64),
