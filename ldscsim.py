@@ -18,39 +18,6 @@ import re
 import numpy as np
 from datetime import datetime, timedelta
 
-def make_tau_ref_dict():
-    '''Make tau_ref_dict from (tsv?/dataframe?/Hail Table?)'''
-    pass
-
-@typecheck(tb=oneof(MatrixTable,
-                    Table),
-           annot_pattern=str,
-           tau_ref_dict=dict)
-def get_tau_dict(tb, annot_pattern, tau_ref_dict):
-    '''Gets annotations matching annot_pattern and pairs with tau reference dict
-    Number of annotations returned by annotation search should be less than or 
-    equal to number of keys in tau_ref_dict.'''
-    pattern = re.compile(annot_pattern)
-    annots = [rf for rf in list(tb.row) if pattern.match(rf)] #annotation search in list of row fields
-    in_tau_ref_dict = set(annots).intersection(set(tau_ref_dict.keys())) #annots in tau_ref_dict
-    if in_tau_ref_dict != set(annots): # if annots returned by search are not in tau_ref_dict
-        print('Ignored fields from annotation search: {}'.format(set(annots).difference(in_tau_ref_dict)))
-        annots = in_tau_ref_dict
-    return {k: tau_ref_dict[k] for k in annots}
-    
-@typecheck(mt=MatrixTable,
-           tau_dict=nullable(dict))
-def agg_annotations(mt,tau_dict=None):
-    '''Aggregates annotations by linear combination. The coefficient are specified
-    by tau_dict value, the annotation field name is specified by tau_dict key.'''
-    
-    mt = mt._annotate_all(row_exprs={'__annot':0},
-                          global_exprs={'__tau_dict':tau_dict})
-    if str not in map(type,tau_dict.keys()): #if none of the keys are strings (maybe they are row exprs)
-        pass
-    for annot,tau in mt.tau_dict.items():
-        mt = mt.annotate_rows(__annot = mt.__annot + tau*mt[annot])
-
 @typecheck(h2=oneof(float,int),
            pi=oneof(float,int),
            annot=oneof(nullable(expr_int32),
@@ -118,18 +85,67 @@ def annotate_w_temp_fields(mt, genotype, h2, pi=1, annot=None, popstrat=None, po
                                              '__popstrat_s2_temp':popstrat_s2})
     return mt1
 
+def make_tau_ref_dict():
+    '''Make tau_ref_dict from (tsv?/dataframe?/Hail Table?)'''
+    pass
+
+@typecheck(tb=oneof(MatrixTable,
+                    Table),
+           annot_pattern=nullable(str),
+           tau_ref_dict=nullable(dict))
+def get_tau_dict(tb, annot_pattern=None, tau_ref_dict=None):
+    '''Gets annotations matching annot_pattern and pairs with tau reference dict
+    Number of annotations returned by annotation search should be less than or 
+    equal to number of keys in tau_ref_dict.'''
+    assert (annot_pattern is None and tau_ref_dict is None), "annot_pattern and tau_ref_dict cannot both be None"
+    if annot_pattern is None: 
+        tau_dict = {k: tau_ref_dict[k] for k in tau_ref_dict.keys() if k in tb.row} # take all row fields in mt matching keys in tau_dict
+        assert len(tau_dict) > 0, 'None of the keys in tau_ref_dict match any row fields' #if intersect is empty: return error
+        return tau_dict #return subset of tau_ref_dict
+    else:
+        pattern = re.compile(annot_pattern)
+        annots = [rf for rf in list(tb.row) if pattern.match(rf)] #annotation search in list of row fields
+        assert len(annots) > 0, 'No row fields matched annotation regex pattern: {}'.format(annot_pattern)
+        if tau_ref_dict is None:
+            print('Assuming tau = 1 for all annotations')
+            return {k: 1 for k in annots}
+        in_tau_ref_dict = set(annots).intersection(set(tau_ref_dict.keys())) #annots in tau_ref_dict
+        if in_tau_ref_dict != set(annots): # if >0 annots returned by search are not in tau_ref_dict
+            assert len(in_tau_ref_dict) > 0, 'annotation fields in tau_ref_dict do not match annotation search results' # if none of the annots returned by search are in tau_ref_dict
+            print('Ignored fields from annotation search: {}'.format(set(annots).difference(in_tau_ref_dict)))
+            print('To include ignored fields, change annot_pattern to regex match desired fields')
+            annots = list(in_tau_ref_dict)
+        return {k: tau_ref_dict[k] for k in annots}
+    
+@typecheck(mt=MatrixTable,
+           tau_dict=nullable(dict),
+           annot_pattern=nullable(str))
+def agg_annotations(mt,tau_dict=None,annot_pattern=None):
+    '''Aggregates annotations by linear combination. The coefficient are specified
+    by tau_dict value, the annotation field name is specified by tau_dict key.'''
+    assert (annot_pattern is None and tau_dict is None), "annot_pattern and tau_dict cannot both be None"
+    mt = mt._annotate_all(row_exprs={'__annot':0},
+                          global_exprs={'__tau_dict':tau_dict if tau_dict is not None else hl.null('dict'),
+                                        '__annot_pattern':annot_pattern if annot_pattern is not None else hl.null('str')})
+    tau_dict = get_tau_dict(tb=mt,annot_pattern=annot_pattern, tau_ref_dict=tau_dict)
+    if str not in map(type,tau_dict.keys()): #if none of the keys are strings (maybe they are row exprs)
+        pass
+    print('Annotation fields and associated tau values used in annotation aggregation: {}'.format(tau_dict))
+    for annot,tau in mt.tau_dict.items():
+        mt = mt.annotate_rows(__annot = mt.__annot + tau*mt[annot])
+
 @typecheck(mt=MatrixTable, 
            h2=oneof(float,int),
            pi=oneof(float,int),
-           annot=oneof(nullable(expr_int32),
-                       nullable(expr_float64)))
-def make_betas(mt, h2, pi=1, annot=None):
+           is_annot_inf=bool,
+           tau_dict=nullable(dict),
+           annot_pattern=nullable(str))
+def make_betas(mt, h2, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None):
     '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''        
     M = mt.count_rows()
-    if annot is not None:
-        print('\rSimulating annotation-informed betas w/ h2 = {}'.format(h2))
-        mt1 = mt._annotate_all(row_exprs={'__annot':annot},
-                              global_exprs={'__h2':h2})
+    if is_annot_inf:
+        print('\rSimulating annotation-informed betas {}'.format('(default tau: 1)' if tau_dict is None else 'using tau dict'))
+        mt1 = agg_annotations(mt,tau_dict,annot_pattern=annot_pattern)
         annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__annot))
         return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot/annot_sum*h2)))
     else:
