@@ -10,10 +10,46 @@ ldsc simulation framework
 
 import hail as hl
 from hail.expr.expressions import *
-from hail.typecheck import *
+#from hail.typecheck import *
+from hail.typecheck import typecheck, oneof, nullable
 from hail.matrixtable import MatrixTable
+from hail.table import Table
+import re
 import numpy as np
 from datetime import datetime, timedelta
+
+def make_tau_ref_dict():
+    '''Make tau_ref_dict from (tsv?/dataframe?/Hail Table?)'''
+    pass
+
+@typecheck(tb=oneof(MatrixTable,
+                    Table),
+           annot_pattern=str,
+           tau_ref_dict=dict)
+def get_tau_dict(tb, annot_pattern, tau_ref_dict):
+    '''Gets annotations matching annot_pattern and pairs with tau reference dict
+    Number of annotations returned by annotation search should be less than or 
+    equal to number of keys in tau_ref_dict.'''
+    pattern = re.compile(annot_pattern)
+    annots = [rf for rf in list(tb.row) if pattern.match(rf)] #annotation search in list of row fields
+    in_tau_ref_dict = set(annots).intersection(set(tau_ref_dict.keys())) #annots in tau_ref_dict
+    if in_tau_ref_dict != set(annots): # if annots returned by search are not in tau_ref_dict
+        print('Ignored fields from annotation search: {}'.format(set(annots).difference(in_tau_ref_dict)))
+        annots = in_tau_ref_dict
+    return {k: tau_ref_dict[k] for k in annots}
+    
+@typecheck(mt=MatrixTable,
+           tau_dict=nullable(dict))
+def agg_annotations(mt,tau_dict=None):
+    '''Aggregates annotations by linear combination. The coefficient are specified
+    by tau_dict value, the annotation field name is specified by tau_dict key.'''
+    
+    mt = mt._annotate_all(row_exprs={'__annot':0},
+                          global_exprs={'__tau_dict':tau_dict})
+    if str not in map(type,tau_dict.keys()): #if none of the keys are strings (maybe they are row exprs)
+        pass
+    for annot,tau in mt.tau_dict.items():
+        mt = mt.annotate_rows(__annot = mt.__annot + tau*mt[annot])
 
 @typecheck(h2=oneof(float,int),
            pi=oneof(float,int),
@@ -111,7 +147,9 @@ def normalize_genotypes(mt, genotype):
     print('\rNormalizing genotypes...')
     mt1 = mt.annotate_entries(__gt = genotype)
     mt2 = mt1.annotate_rows(__gt_stats = hl.agg.stats(mt1.__gt))
-    return mt2.annotate_entries(__norm_gt = (mt2.__gt-mt2.__gt_stats.mean)/mt2.__gt_stats.stdev)    
+    return mt2.annotate_entries(__norm_gt = (mt2.__gt-mt2.__gt_stats.mean)/mt2.__gt_stats.stdev)  
+
+
 
 @typecheck(mt=MatrixTable, 
            y=oneof(expr_int32,expr_float64),
