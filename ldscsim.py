@@ -9,7 +9,7 @@ ldsc simulation framework
 """
 
 import hail as hl
-from hail.expr.expressions import expr_int32,expr_int64,expr_float32,expr_float64
+from hail.expr.expressions import expr_int32, expr_int64, expr_float32, expr_float64
 from hail.typecheck import typecheck, oneof, nullable
 from hail.matrixtable import MatrixTable
 from hail.table import Table
@@ -56,7 +56,6 @@ def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, ann
                  popstrat=popstrat, 
                  popstrat_s2=popstrat_s2, 
                  path_to_save=path_to_save)
-    
     
     mt1 = annotate_w_temp_fields(mt=mt, 
                                  genotype=genotype,
