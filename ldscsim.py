@@ -17,6 +17,92 @@ import re
 import numpy as np
 from datetime import datetime, timedelta
 
+@typecheck(mt=MatrixTable, 
+           genotype=oneof(expr_int32,
+                          expr_int64, 
+                          expr_float32, 
+                          expr_float64),
+           h2=oneof(nullable(float),
+                    nullable(int)),
+           pi=oneof(float,int),
+           is_annot_inf=bool,
+           tau_dict=nullable(dict),
+           annot_pattern=nullable(str),
+           h2_normalize=bool,
+           popstrat=oneof(nullable(expr_int32),
+                          nullable(expr_float64)),
+           popstrat_s2=oneof(float,
+                             int,
+                             expr_int32,
+                             expr_int64,
+                             expr_float32,
+                             expr_float64),
+           path_to_save=nullable(str))
+def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None,
+             h2_normalize=False, popstrat=None, popstrat_s2 = 1,path_to_save=None):
+    ''' Simulates phenotypes. 
+        Options: 
+            models for betas: Infinitesimal, spike/slab, annotation-informed
+            models for phenotypes: population stratification'''
+    check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
+                        annot_pattern=annot_pattern,h2_normalize=h2_normalize)
+    
+    starttime = datetime.now()
+    
+    print_header(h2=h2, 
+                 pi=pi, 
+                 is_annot_inf=is_annot_inf, 
+                 h2_normalize=h2_normalize,
+                 popstrat=popstrat, 
+                 popstrat_s2=popstrat_s2, 
+                 path_to_save=path_to_save)
+    
+    
+    mt1 = annotate_w_temp_fields(mt=mt, 
+                                 genotype=genotype,
+                                 h2=h2, 
+                                 pi=pi, 
+                                 is_annot_inf=is_annot_inf,
+                                 popstrat=popstrat, 
+                                 popstrat_s2=popstrat_s2)
+    
+    mt2 = make_betas(mt=mt1, 
+                     h2=h2, 
+                     pi=pi, 
+                     is_annot_inf=is_annot_inf,
+                     tau_dict=tau_dict,
+                     annot_pattern=annot_pattern,
+                     h2_normalize=h2_normalize)
+        
+    mt2 = mt2.rename({'__beta':'__beta_temp'})
+
+    if popstrat is None:
+        mt3 = sim_phenotypes(mt=mt2, 
+                             genotype=mt2.__gt_temp, 
+                             h2=h2, 
+                             beta=mt2.__beta_temp)
+    if popstrat is not None:
+        mt3 =  sim_phenotypes(mt=mt2, 
+                              genotype=mt2.__gt_temp, 
+                              h2=h2, 
+                              beta=mt2.__beta_temp,
+                              popstrat=mt2.__popstrat_temp, 
+                              popstrat_s2=mt2.__popstrat_s2_temp)
+        
+    mt4 = clean_fields(mt3, '_temp')
+    stoptime = datetime.now()
+    runtime = stoptime-starttime
+    mt5 = add_sim_description(mt=mt4,h2=h2,starttime=starttime,stoptime=stoptime,
+                              runtime=runtime,pi=pi,is_annot_inf=is_annot_inf,
+                              tau_dict=tau_dict,annot_pattern=annot_pattern,
+                              h2_normalize=h2_normalize,popstrat=popstrat,
+                              popstrat_s2=popstrat_s2,path_to_save=path_to_save)
+    print('\rFinished simulation! (runtime={} min)'.format(np.round((runtime.seconds+runtime.microseconds/1e6)/60, 4)).ljust(100))
+    if path_to_save is not None:
+        print('\rWriting simulation to: {}'.format(path_to_save))
+        mt5.write(path_to_save)
+    return mt5
+
 def check_beta_args(h2, pi, is_annot_inf, tau_dict, annot_pattern, h2_normalize):
     '''checks beta args for simulate() and make_betas()'''
     if is_annot_inf:
@@ -319,88 +405,3 @@ def add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,is_annot_inf=False
                          popstrat_s2=popstrat_s2,path_to_save=path_to_save)
     mt = mt._annotate_all(global_exprs={'sim_desc{}'.format(sim_id):sim_desc})
     return mt
-
-@typecheck(mt=MatrixTable, 
-           genotype=oneof(expr_int32,
-                          expr_int64, 
-                          expr_float32, 
-                          expr_float64),
-           h2=oneof(nullable(float),
-                    nullable(int)),
-           pi=oneof(float,int),
-           is_annot_inf=bool,
-           tau_dict=nullable(dict),
-           annot_pattern=nullable(str),
-           h2_normalize=bool,
-           popstrat=oneof(nullable(expr_int32),
-                          nullable(expr_float64)),
-           popstrat_s2=oneof(float,
-                             int,
-                             expr_int32,
-                             expr_int64,
-                             expr_float32,
-                             expr_float64),
-           path_to_save=nullable(str))
-def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None,
-             h2_normalize=False, popstrat=None, popstrat_s2 = 1,path_to_save=None):
-    ''' Simulates phenotypes. 
-        Options: 
-            models for betas: Infinitesimal, spike/slab, annotation-informed
-            models for phenotypes: population stratification'''
-    check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
-                        annot_pattern=annot_pattern,h2_normalize=h2_normalize)
-    starttime = datetime.now()
-    
-    print_header(h2=h2, 
-                 pi=pi, 
-                 is_annot_inf=is_annot_inf, 
-                 h2_normalize=h2_normalize,
-                 popstrat=popstrat, 
-                 popstrat_s2=popstrat_s2, 
-                 path_to_save=path_to_save)
-    
-    
-    mt1 = annotate_w_temp_fields(mt=mt, 
-                                 genotype=genotype,
-                                 h2=h2, 
-                                 pi=pi, 
-                                 is_annot_inf=is_annot_inf,
-                                 popstrat=popstrat, 
-                                 popstrat_s2=popstrat_s2)
-    
-    mt2 = make_betas(mt=mt1, 
-                     h2=h2, 
-                     pi=pi, 
-                     is_annot_inf=is_annot_inf,
-                     tau_dict=tau_dict,
-                     annot_pattern=annot_pattern,
-                     h2_normalize=h2_normalize)
-        
-    mt2 = mt2.rename({'__beta':'__beta_temp'})
-
-    if popstrat is None:
-        mt3 = sim_phenotypes(mt=mt2, 
-                             genotype=mt2.__gt_temp, 
-                             h2=h2, 
-                             beta=mt2.__beta_temp)
-    if popstrat is not None:
-        mt3 =  sim_phenotypes(mt=mt2, 
-                              genotype=mt2.__gt_temp, 
-                              h2=h2, 
-                              beta=mt2.__beta_temp,
-                              popstrat=mt2.__popstrat_temp, 
-                              popstrat_s2=mt2.__popstrat_s2_temp)
-        
-    mt4 = clean_fields(mt3, '_temp')
-    stoptime = datetime.now()
-    runtime = stoptime-starttime
-    mt5 = add_sim_description(mt=mt4,h2=h2,starttime=starttime,stoptime=stoptime,
-                              runtime=runtime,pi=pi,is_annot_inf=is_annot_inf,
-                              tau_dict=tau_dict,annot_pattern=annot_pattern,
-                              h2_normalize=h2_normalize,popstrat=popstrat,
-                              popstrat_s2=popstrat_s2,path_to_save=path_to_save)
-    print('\rFinished simulation! (runtime={} min)'.format(np.round((runtime.seconds+runtime.microseconds/1e6)/60, 4)).ljust(100))
-    if path_to_save is not None:
-        print('\rWriting simulation to: {}'.format(path_to_save))
-        mt5.write(path_to_save)
-    return mt5
