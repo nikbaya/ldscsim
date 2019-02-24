@@ -307,7 +307,8 @@ def add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,is_annot_inf=False
                           expr_int64, 
                           expr_float32, 
                           expr_float64),
-           h2=oneof(float,int),
+           h2=oneof(nullable(float),
+                    nullable(int)),
            pi=oneof(float,int),
            is_annot_inf=bool,
            tau_dict=nullable(dict),
@@ -322,12 +323,21 @@ def add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,is_annot_inf=False
                              expr_float32,
                              expr_float64),
            path_to_save=nullable(str))
-def simulate(mt, genotype, h2, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None,
+def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None,
              h2_normalize=False, popstrat=None, popstrat_s2 = 1,path_to_save=None):
     ''' Simulates phenotypes. 
         Options: Infinitesimal, spike/slab, annotation-informed, population stratification'''
     if is_annot_inf:
         assert (tau_dict != None or annot_pattern != None), 'If using annotation-informed model, both tau_dict and annot_pattern cannot be None'
+        assert (h2 != None or h2_normalize == False), 'If using annotation-informed model, h2 cannot be None when h2_normalize is True'
+        if h2_normalize == False and not (h2 >= 0 and h2 <= 0):
+            print('Ignoring non-valid h2={} (not in [0,1]) because h2_normalize=False'.format(h2))
+        elif h2_normalize:
+            assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
+    else:
+        assert (h2 != None), 'h2 cannot be None, unless running annotation-informed model'
+        assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
+        assert (pi >= 0 and pi <= 1), 'pi must be in [0,1]'
 
     starttime = datetime.now()
     
