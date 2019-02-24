@@ -208,11 +208,12 @@ def add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,annot=None,popstra
     sim_id = 0
     while (str(sim_id) in [x.strip('sim_desc') for x in list(mt.globals) if 'sim_desc' in x]):
         sim_id += 1
-    sim_desc = 'h2={h2}\npi={pi}\nis_annot={is_annot}\nis_popstrat={is_popstrat}'.format(
-                h2=h2,pi=pi,is_annot=(annot is not None),is_popstrat=(annot is not None))
-    sim_desc += '' if popstrat is None else '\npopstrat_s2={}'.format(popstrat_s2)
-    sim_desc += '\nstarttime:{}\nstoptime: {}\nruntime:  {}\n'.format(starttime,stoptime,runtime)
-    sim_desc += 'Saved to: {}'.format(path_to_save)
+    for arg in [annot,popstrat,path_to_save]:
+        if arg  is None:
+            arg = hl.null('str')
+    sim_desc = hl.struct(h2=h2,starttime=str(starttime),stoptime=str(stoptime),
+                         runtime=str(runtime),pi=pi,annot=annot,popstrat=popstrat,
+                         popstrat_s2=popstrat_s2,path_to_save=path_to_save)
     mt = mt._annotate_all(global_exprs={'sim_desc{}'.format(sim_id):sim_desc})
     return mt
 
