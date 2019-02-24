@@ -89,6 +89,33 @@ def make_tau_ref_dict():
     '''Make tau_ref_dict from (tsv?/dataframe?/Hail Table?)'''
     pass
 
+@typecheck(mt=MatrixTable,
+           annot_list=oneof(list,
+                            dict),
+           annot_pattern=str)
+def add_annot_pattern(mt, annot_list,annot_pattern,prefix=True):
+    '''Adds a given pattern to the names of row field annotations listed in a 
+    list or from the keysof a dict. Helpful for searching for those annotations 
+    in get_tau_dict() or agg_annotations(). If prefix=False, the pattern will be
+    added as a suffix.'''
+    if type(annot_list) == dict :
+        annot_list = list(annot_list.keys)
+    row_fields = set(mt.row)
+    if set(annot_list) != row_fields:
+        annots_in_row_fields= set(annot_list).intersection(row_fields)
+        if len(annots_in_row_fields) == 0:
+            print('No row fields matched annots in annot_list')
+        else:
+            print('Ignored fields for adding annot pattern: {}'.format(set(annot_list).difference(annots_in_row_fields)))
+    for annot in annot_list:
+        new_field = [annot_pattern,annot][prefix,prefix is True].join('')
+        if new_field in row_fields:
+            print('Row field name collision: {}'.format(new_field))
+            print('To avoid name collision, rename field {}'.format(new_field))
+        else:
+            mt = mt._annotate_all(row_exprs={new_field:mt[annot]})
+    return mt
+        
 @typecheck(tb=oneof(MatrixTable,
                     Table),
            annot_pattern=nullable(str),
@@ -308,7 +335,7 @@ def simulate(mt, genotype, h2, pi=1, annot=None, popstrat=None, popstrat_s2 = 1,
     mt2 = make_betas(mt=mt1, 
                      h2=h2, 
                      pi=pi, 
-                     annot=None if annot is None else mt1.__annot_temp)
+                     is_annot=None if annot is None else mt1.__annot_temp)
         
     mt2 = mt2.rename({'__beta':'__beta_temp'})
 
