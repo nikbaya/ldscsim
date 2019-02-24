@@ -103,15 +103,23 @@ def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, ann
         mt5.write(path_to_save)
     return mt5
 
-def check_beta_args(h2, pi, is_annot_inf, tau_dict, annot_pattern, h2_normalize):
+@typecheck(h2=oneof(nullable(float),
+                    nullable(int)),
+           pi=oneof(float,int),
+           is_annot_inf=bool,
+           tau_dict=nullable(dict),
+           annot_pattern=nullable(str),
+           h2_normalize=bool)
+def check_beta_args(h2=None, pi=1, is_annot_inf=False, tau_dict=None, 
+                    annot_pattern=None,h2_normalize=False):
     '''checks beta args for simulate() and make_betas()'''
-    if is_annot_inf:
+    if is_annot_inf: #if using the annotation-informed model
         assert (tau_dict != None or annot_pattern != None), 'If using annotation-informed model, both tau_dict and annot_pattern cannot be None'
-        assert (h2 != None or h2_normalize == False), 'If using annotation-informed model, h2 cannot be None when h2_normalize is True'
+        if h2_normalize:
+            assert (h2 != None), 'h2 cannot be None when h2_normalize=True'
+            assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
         if h2_normalize == False and not (h2 >= 0 and h2 <= 0):
             print('Ignoring non-valid h2={} (not in [0,1]) because h2_normalize=False'.format(h2))
-        elif h2_normalize:
-            assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
     else:
         assert (h2 != None), 'h2 cannot be None, unless running annotation-informed model'
         assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
@@ -186,6 +194,77 @@ def annotate_w_temp_fields(mt, genotype, h2, pi=1, annot=None, popstrat=None, po
                                              '__popstrat_s2_temp':popstrat_s2})
     return mt1
 
+@typecheck(mt=MatrixTable, 
+           h2=oneof(nullable(float),
+                    nullable(int)),
+           pi=oneof(float,int),
+           is_annot_inf=bool,
+           tau_dict=nullable(dict),
+           annot_pattern=nullable(str),
+           h2_normalize=bool)
+def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, h2_normalize=False):
+    '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''  
+    check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
+                    annot_pattern=annot_pattern,h2_normalize=h2_normalize)
+    M = mt.count_rows()
+    if is_annot_inf:
+        print('\rSimulating {} annotation-informed betas {}'.format(
+                'h2-normalized' if h2_normalize else '',
+                '(default tau: 1)' if tau_dict is None else 'using tau dict'))
+        mt1 = agg_annotations(mt,tau_dict,annot_pattern=annot_pattern)
+        annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__annot))
+        return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot/annot_sum*(h2 if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
+    else:
+        print('Simulating betas using {} model w/ h2 = {}'.format(('infinitesimal' if pi is 1 else 'spike & slab'),h2))
+        mt1 = mt.annotate_globals(__h2 = h2, __pi = pi)
+        return mt1.annotate_rows(__beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2/(M*pi))))
+
+@typecheck(mt=MatrixTable,
+           tau_dict=nullable(dict),
+           annot_pattern=nullable(str))
+def agg_annotations(mt,tau_dict=None,annot_pattern=None):
+    '''Aggregates annotations by linear combination. The coefficient are specified
+    by tau_dict value, the annotation field name is specified by tau_dict key.'''
+    assert (annot_pattern is None and tau_dict is None), "annot_pattern and tau_dict cannot both be None"
+    mt = mt._annotate_all(row_exprs={'__annot':0},
+                          global_exprs={'__tau_dict':tau_dict if tau_dict is not None else hl.null('dict'),
+                                        '__annot_pattern':annot_pattern if annot_pattern is not None else hl.null('str')})
+    tau_dict = get_tau_dict(tb=mt,annot_pattern=annot_pattern, tau_ref_dict=tau_dict)
+    if str not in map(type,tau_dict.keys()): #if none of the keys are strings (maybe they are row exprs)
+        pass
+    print('Annotation fields and associated tau values used in annotation aggregation: {}'.format(tau_dict))
+    for annot,tau in mt.tau_dict.items():
+        mt = mt.annotate_rows(__annot = mt.__annot + tau*mt[annot])
+    return mt
+
+@typecheck(tb=oneof(MatrixTable,
+                    Table),
+           annot_pattern=nullable(str),
+           tau_ref_dict=nullable(dict))
+def get_tau_dict(tb, annot_pattern=None, tau_ref_dict=None):
+    '''Gets annotations matching annot_pattern and pairs with tau reference dict
+    Number of annotations returned by annotation search should be less than or 
+    equal to number of keys in tau_ref_dict.'''
+    assert (annot_pattern != None or tau_ref_dict != None), "annot_pattern and tau_ref_dict cannot both be None"
+    if annot_pattern is None: 
+        tau_dict = {k: tau_ref_dict[k] for k in tau_ref_dict.keys() if k in tb.row} # take all row fields in mt matching keys in tau_dict
+        assert len(tau_dict) > 0, 'None of the keys in tau_ref_dict match any row fields' #if intersect is empty: return error
+        return tau_dict #return subset of tau_ref_dict
+    else:
+        pattern = re.compile(annot_pattern)
+        annots = [rf for rf in list(tb.row) if pattern.match(rf)] #annotation search in list of row fields
+        assert len(annots) > 0, 'No row fields matched annotation regex pattern: {}'.format(annot_pattern)
+        if tau_ref_dict is None:
+            print('Assuming tau = 1 for all annotations')
+            return {k: 1 for k in annots}
+        in_tau_ref_dict = set(annots).intersection(set(tau_ref_dict.keys())) #annots in tau_ref_dict
+        if in_tau_ref_dict != set(annots): # if >0 annots returned by search are not in tau_ref_dict
+            assert len(in_tau_ref_dict) > 0, 'annotation fields in tau_ref_dict do not match annotation search results' # if none of the annots returned by search are in tau_ref_dict
+            print('Ignored fields from annotation search: {}'.format(set(annots).difference(in_tau_ref_dict)))
+            print('To include ignored fields, change annot_pattern to regex match desired fields')
+            annots = list(in_tau_ref_dict)
+        return {k: tau_ref_dict[k] for k in annots}
+
 def make_tau_ref_dict():
     '''Make tau_ref_dict from tsv?/dataframe?/Hail Table?'''
     pass
@@ -216,109 +295,6 @@ def add_annot_pattern(mt, annot_list, annot_pattern, prefix=True):
         else:
             mt = mt._annotate_all(row_exprs={new_field:mt[annot]})
     return mt
-        
-@typecheck(tb=oneof(MatrixTable,
-                    Table),
-           annot_pattern=nullable(str),
-           tau_ref_dict=nullable(dict))
-def get_tau_dict(tb, annot_pattern=None, tau_ref_dict=None):
-    '''Gets annotations matching annot_pattern and pairs with tau reference dict
-    Number of annotations returned by annotation search should be less than or 
-    equal to number of keys in tau_ref_dict.'''
-    assert (annot_pattern != None or tau_ref_dict != None), "annot_pattern and tau_ref_dict cannot both be None"
-    if annot_pattern is None: 
-        tau_dict = {k: tau_ref_dict[k] for k in tau_ref_dict.keys() if k in tb.row} # take all row fields in mt matching keys in tau_dict
-        assert len(tau_dict) > 0, 'None of the keys in tau_ref_dict match any row fields' #if intersect is empty: return error
-        return tau_dict #return subset of tau_ref_dict
-    else:
-        pattern = re.compile(annot_pattern)
-        annots = [rf for rf in list(tb.row) if pattern.match(rf)] #annotation search in list of row fields
-        assert len(annots) > 0, 'No row fields matched annotation regex pattern: {}'.format(annot_pattern)
-        if tau_ref_dict is None:
-            print('Assuming tau = 1 for all annotations')
-            return {k: 1 for k in annots}
-        in_tau_ref_dict = set(annots).intersection(set(tau_ref_dict.keys())) #annots in tau_ref_dict
-        if in_tau_ref_dict != set(annots): # if >0 annots returned by search are not in tau_ref_dict
-            assert len(in_tau_ref_dict) > 0, 'annotation fields in tau_ref_dict do not match annotation search results' # if none of the annots returned by search are in tau_ref_dict
-            print('Ignored fields from annotation search: {}'.format(set(annots).difference(in_tau_ref_dict)))
-            print('To include ignored fields, change annot_pattern to regex match desired fields')
-            annots = list(in_tau_ref_dict)
-        return {k: tau_ref_dict[k] for k in annots}
-    
-@typecheck(mt=MatrixTable,
-           tau_dict=nullable(dict),
-           annot_pattern=nullable(str))
-def agg_annotations(mt,tau_dict=None,annot_pattern=None):
-    '''Aggregates annotations by linear combination. The coefficient are specified
-    by tau_dict value, the annotation field name is specified by tau_dict key.'''
-    assert (annot_pattern is None and tau_dict is None), "annot_pattern and tau_dict cannot both be None"
-    mt = mt._annotate_all(row_exprs={'__annot':0},
-                          global_exprs={'__tau_dict':tau_dict if tau_dict is not None else hl.null('dict'),
-                                        '__annot_pattern':annot_pattern if annot_pattern is not None else hl.null('str')})
-    tau_dict = get_tau_dict(tb=mt,annot_pattern=annot_pattern, tau_ref_dict=tau_dict)
-    if str not in map(type,tau_dict.keys()): #if none of the keys are strings (maybe they are row exprs)
-        pass
-    print('Annotation fields and associated tau values used in annotation aggregation: {}'.format(tau_dict))
-    for annot,tau in mt.tau_dict.items():
-        mt = mt.annotate_rows(__annot = mt.__annot + tau*mt[annot])
-
-@typecheck(mt=MatrixTable, 
-           h2=oneof(nullable(float),
-                    nullable(int)),
-           pi=oneof(float,int),
-           is_annot_inf=bool,
-           tau_dict=nullable(dict),
-           annot_pattern=nullable(str),
-           h2_normalize=bool)
-def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, h2_normalize=False):
-    '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''  
-    check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
-                    annot_pattern=annot_pattern,h2_normalize=h2_normalize)
-    M = mt.count_rows()
-    if is_annot_inf:
-        print('\rSimulating {} annotation-informed betas {}'.format(
-                'h2-normalized' if h2_normalize else '',
-                '(default tau: 1)' if tau_dict is None else 'using tau dict'))
-        mt1 = agg_annotations(mt,tau_dict,annot_pattern=annot_pattern)
-        annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__annot))
-        return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot/annot_sum*(h2 if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
-    else:
-        print('Simulating betas using {} model w/ h2 = {}'.format(('infinitesimal' if pi is 1 else 'spike & slab'),h2))
-        mt1 = mt.annotate_globals(__h2 = h2, __pi = pi)
-        return mt1.annotate_rows(__beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2/(M*pi))))
-
-@typecheck(mt=MatrixTable, 
-           genotype=oneof(expr_int32,
-                          expr_int64, 
-                          expr_float32, 
-                          expr_float64))
-def normalize_genotypes(mt, genotype):
-    '''Normalizes genotypes'''
-    print('\rNormalizing genotypes...')
-    mt1 = mt.annotate_entries(__gt = genotype)
-    mt2 = mt1.annotate_rows(__gt_stats = hl.agg.stats(mt1.__gt))
-    return mt2.annotate_entries(__norm_gt = (mt2.__gt-mt2.__gt_stats.mean)/mt2.__gt_stats.stdev)  
-
-@typecheck(mt=MatrixTable, 
-           y=oneof(expr_int32,expr_float64),
-           popstrat=oneof(nullable(expr_int32),nullable(expr_float64)),
-           popstrat_s2=oneof(float,
-                             int,
-                             expr_int32,
-                             expr_int64,
-                             expr_float32,
-                             expr_float64))
-def add_pop_strat(mt, y, popstrat, popstrat_s2=1):
-    '''Adds popstrat to a phenotype'''
-    print('\rAdding population stratification (popstrat_s2 = {})'.format(popstrat_s2))
-    mt1 = mt.annotate_cols(__y = y, 
-                           __popstrat = popstrat)
-    mt1 = mt1.annotate_globals(__popstrat_s2 = popstrat_s2)
-    popstrat_stats = mt1.aggregate_cols(hl.agg.stats(mt1.__popstrat), _localize=True)
-    mt2 = mt1.annotate_cols(__norm_popstrat = (mt1.__popstrat-popstrat_stats.mean)/popstrat_stats.stdev)
-    mt3 = mt2.annotate_cols(__y_w_popstrat = mt2.__y + mt2.__norm_popstrat*hl.sqrt(mt2.__popstrat_s2))
-    y_w_popstrat_stats = mt3.aggregate_cols(hl.agg.stats(mt3.__y_w_popstrat))
-    return mt3.annotate_cols(__y_w_popstrat = (mt3.__y_w_popstrat-y_w_popstrat_stats.mean)/y_w_popstrat_stats.stdev)
 
 @typecheck(mt=MatrixTable, 
            genotype=oneof(expr_int32, 
@@ -359,6 +335,39 @@ def sim_phenotypes(mt, genotype, h2, beta, popstrat=None, popstrat_s2=1):
                              y=mt4.__y, 
                              popstrat=mt4.__popstrat, 
                              popstrat_s2=hl.eval(mt4.__popstrat_s2))
+
+@typecheck(mt=MatrixTable, 
+           genotype=oneof(expr_int32,
+                          expr_int64, 
+                          expr_float32, 
+                          expr_float64))
+def normalize_genotypes(mt, genotype):
+    '''Normalizes genotypes'''
+    print('\rNormalizing genotypes...')
+    mt1 = mt.annotate_entries(__gt = genotype)
+    mt2 = mt1.annotate_rows(__gt_stats = hl.agg.stats(mt1.__gt))
+    return mt2.annotate_entries(__norm_gt = (mt2.__gt-mt2.__gt_stats.mean)/mt2.__gt_stats.stdev)  
+
+@typecheck(mt=MatrixTable, 
+           y=oneof(expr_int32,expr_float64),
+           popstrat=oneof(nullable(expr_int32),nullable(expr_float64)),
+           popstrat_s2=oneof(float,
+                             int,
+                             expr_int32,
+                             expr_int64,
+                             expr_float32,
+                             expr_float64))
+def add_pop_strat(mt, y, popstrat, popstrat_s2=1):
+    '''Adds popstrat to a phenotype'''
+    print('\rAdding population stratification (popstrat_s2 = {})'.format(popstrat_s2))
+    mt1 = mt.annotate_cols(__y = y, 
+                           __popstrat = popstrat)
+    mt1 = mt1.annotate_globals(__popstrat_s2 = popstrat_s2)
+    popstrat_stats = mt1.aggregate_cols(hl.agg.stats(mt1.__popstrat), _localize=True)
+    mt2 = mt1.annotate_cols(__norm_popstrat = (mt1.__popstrat-popstrat_stats.mean)/popstrat_stats.stdev)
+    mt3 = mt2.annotate_cols(__y_w_popstrat = mt2.__y + mt2.__norm_popstrat*hl.sqrt(mt2.__popstrat_s2))
+    y_w_popstrat_stats = mt3.aggregate_cols(hl.agg.stats(mt3.__y_w_popstrat))
+    return mt3.annotate_cols(__y_w_popstrat = (mt3.__y_w_popstrat-y_w_popstrat_stats.mean)/y_w_popstrat_stats.stdev)
 
 @typecheck(mt = MatrixTable, 
            str_expr=str)
