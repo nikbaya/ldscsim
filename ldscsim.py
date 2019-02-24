@@ -17,7 +17,22 @@ import re
 import numpy as np
 from datetime import datetime, timedelta
 
-@typecheck(h2=oneof(float,int),
+def check_beta_args(h2, pi, is_annot_inf, tau_dict, annot_pattern, h2_normalize):
+    '''checks beta args for simulate() and make_betas()'''
+    if is_annot_inf:
+        assert (tau_dict != None or annot_pattern != None), 'If using annotation-informed model, both tau_dict and annot_pattern cannot be None'
+        assert (h2 != None or h2_normalize == False), 'If using annotation-informed model, h2 cannot be None when h2_normalize is True'
+        if h2_normalize == False and not (h2 >= 0 and h2 <= 0):
+            print('Ignoring non-valid h2={} (not in [0,1]) because h2_normalize=False'.format(h2))
+        elif h2_normalize:
+            assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
+    else:
+        assert (h2 != None), 'h2 cannot be None, unless running annotation-informed model'
+        assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
+        assert (pi >= 0 and pi <= 1), 'pi must be in [0,1]'
+
+@typecheck(h2=oneof(nullable(float),
+                    nullable(int)),
            pi=oneof(float,int),
            is_annot_inf=bool,
            h2_normalize=bool,
@@ -34,7 +49,7 @@ def print_header(h2, pi, is_annot_inf, h2_normalize, popstrat, popstrat_s2, path
     '''Makes the header for the simulation'''
     header =  '\n****************************************\n'
     header += 'Running simulation framework\n'
-    header += 'h2 = {}\n'.format(h2) if h2_normalize else ''
+    header += 'h2 = {}\n'.format(h2) if (h2_normalize and h2 != None) else ''
     header += 'pi = {} (default: 1)\n'.format(pi)
     header += 'Annotation-informed betas?: {}\n'.format('YES' if is_annot_inf else 'NO')
     header += 'h2-normalized betas?: {}\n'.format('YES' if h2_normalize else 'NO')
@@ -162,14 +177,17 @@ def agg_annotations(mt,tau_dict=None,annot_pattern=None):
         mt = mt.annotate_rows(__annot = mt.__annot + tau*mt[annot])
 
 @typecheck(mt=MatrixTable, 
-           h2=oneof(float,int),
+           h2=oneof(nullable(float),
+                    nullable(int)),
            pi=oneof(float,int),
            is_annot_inf=bool,
            tau_dict=nullable(dict),
            annot_pattern=nullable(str),
            h2_normalize=bool)
-def make_betas(mt, h2, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, h2_normalize=False):
-    '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''        
+def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, h2_normalize=False):
+    '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''  
+    check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
+                    annot_pattern=annot_pattern,h2_normalize=h2_normalize)
     M = mt.count_rows()
     if is_annot_inf:
         print('\rSimulating {} annotation-informed betas {}'.format(
@@ -326,19 +344,11 @@ def add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,is_annot_inf=False
 def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None,
              h2_normalize=False, popstrat=None, popstrat_s2 = 1,path_to_save=None):
     ''' Simulates phenotypes. 
-        Options: Infinitesimal, spike/slab, annotation-informed, population stratification'''
-    if is_annot_inf:
-        assert (tau_dict != None or annot_pattern != None), 'If using annotation-informed model, both tau_dict and annot_pattern cannot be None'
-        assert (h2 != None or h2_normalize == False), 'If using annotation-informed model, h2 cannot be None when h2_normalize is True'
-        if h2_normalize == False and not (h2 >= 0 and h2 <= 0):
-            print('Ignoring non-valid h2={} (not in [0,1]) because h2_normalize=False'.format(h2))
-        elif h2_normalize:
-            assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
-    else:
-        assert (h2 != None), 'h2 cannot be None, unless running annotation-informed model'
-        assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
-        assert (pi >= 0 and pi <= 1), 'pi must be in [0,1]'
-
+        Options: 
+            models for betas: Infinitesimal, spike/slab, annotation-informed
+            models for phenotypes: population stratification'''
+    check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
+                        annot_pattern=annot_pattern,h2_normalize=h2_normalize)
     starttime = datetime.now()
     
     print_header(h2=h2, 
