@@ -9,11 +9,81 @@ ldsc simulation framework
 """
 
 import hail as hl
-from hail.expr.expressions import *
-from hail.typecheck import *
+from hail.expr.expressions import expr_int32, expr_int64, expr_float32, expr_float64
+from hail.typecheck import typecheck, oneof, nullable
 from hail.matrixtable import MatrixTable
+from hail.table import Table
+import re
 import numpy as np
 from datetime import datetime, timedelta
+
+@typecheck(mt=MatrixTable, 
+           genotype=oneof(expr_int32,
+                          expr_int64, 
+                          expr_float32, 
+                          expr_float64),
+           h2=oneof(float,int),
+           pi=oneof(float,int),
+           annot=oneof(nullable(expr_int32),
+                       nullable(expr_float64)),
+           popstrat=oneof(nullable(expr_int32),
+                          nullable(expr_float64)),
+           popstrat_s2=oneof(float,
+                             int,
+                             expr_int32,
+                             expr_int64,
+                             expr_float32,
+                             expr_float64),
+           path_to_save=nullable(str))
+def simulate(mt, genotype, h2, pi=1, annot=None, popstrat=None, popstrat_s2 = 1,path_to_save=None):
+    ''' Simulates phenotypes. 
+        Options: Infinitesimal, spike/slab, annotation-informed, population stratification'''
+    print_header(h2=h2, 
+                 pi=pi, 
+                 annot=annot, 
+                 popstrat=popstrat, 
+                 popstrat_s2=popstrat_s2, 
+                 path_to_save=path_to_save)
+    
+    starttime = datetime.now()
+    
+    mt1 = annotate_w_temp_fields(mt=mt, 
+                                 genotype=genotype,
+                                 h2=h2, 
+                                 pi=pi, 
+                                 annot=annot, 
+                                 popstrat=popstrat, 
+                                 popstrat_s2=popstrat_s2)
+    
+    mt2 = make_betas(mt=mt1, 
+                     h2=h2, 
+                     pi=pi, 
+                     annot=None if annot is None else mt1.__annot_temp)
+        
+    mt2 = mt2.rename({'__beta':'__beta_temp'})
+
+    if popstrat is None:
+        mt3 = sim_phenotypes(mt=mt2, 
+                             genotype=mt2.__gt_temp, 
+                             h2=h2, 
+                             beta=mt2.__beta_temp)
+    if popstrat is not None:
+        mt3 =  sim_phenotypes(mt=mt2, 
+                              genotype=mt2.__gt_temp, 
+                              h2=h2, 
+                              beta=mt2.__beta_temp,
+                              popstrat=mt2.__popstrat_temp, 
+                              popstrat_s2=mt2.__popstrat_s2_temp)
+        
+    mt4 = clean_fields(mt3, '_temp')
+    stoptime = datetime.now()
+    runtime = stoptime-starttime
+    mt5 = add_sim_description(mt4,h2,starttime,stoptime,runtime,pi,annot,popstrat,popstrat_s2,path_to_save)
+    print('\rFinished simulation! (runtime={} min)'.format(np.round((runtime.seconds+runtime.microseconds/1e6)/60, 4)).ljust(100))
+    if path_to_save is not None:
+        print('\rWriting simulation to: {}'.format(path_to_save))
+        mt5.write(path_to_save)
+    return mt5
 
 @typecheck(h2=oneof(float,int),
            pi=oneof(float,int),
@@ -103,41 +173,6 @@ def make_betas(mt, h2, pi=1, annot=None):
         return mt1.annotate_rows(__beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2/(M*pi))))
 
 @typecheck(mt=MatrixTable, 
-           genotype=oneof(expr_int32,
-                          expr_int64, 
-                          expr_float32, 
-                          expr_float64))
-def normalize_genotypes(mt, genotype):
-    '''Normalizes genotypes'''
-    print('\rNormalizing genotypes...')
-    mt1 = mt.annotate_entries(__gt = genotype)
-    mt2 = mt1.annotate_rows(__gt_stats = hl.agg.stats(mt1.__gt))
-    return mt2.annotate_entries(__norm_gt = (mt2.__gt-mt2.__gt_stats.mean)/mt2.__gt_stats.stdev)  
-
-
-
-@typecheck(mt=MatrixTable, 
-           y=oneof(expr_int32,expr_float64),
-           popstrat=oneof(nullable(expr_int32),nullable(expr_float64)),
-           popstrat_s2=oneof(float,
-                             int,
-                             expr_int32,
-                             expr_int64,
-                             expr_float32,
-                             expr_float64))
-def add_pop_strat(mt, y, popstrat, popstrat_s2=1):
-    '''Adds popstrat to a phenotype'''
-    print('\rAdding population stratification (popstrat_s2 = {})'.format(popstrat_s2))
-    mt1 = mt.annotate_cols(__y = y, 
-                           __popstrat = popstrat)
-    mt1 = mt1.annotate_globals(__popstrat_s2 = popstrat_s2)
-    popstrat_stats = mt1.aggregate_cols(hl.agg.stats(mt1.__popstrat), _localize=True)
-    mt2 = mt1.annotate_cols(__norm_popstrat = (mt1.__popstrat-popstrat_stats.mean)/popstrat_stats.stdev)
-    mt3 = mt2.annotate_cols(__y_w_popstrat = mt2.__y + mt2.__norm_popstrat*hl.sqrt(mt2.__popstrat_s2))
-    y_w_popstrat_stats = mt3.aggregate_cols(hl.agg.stats(mt3.__y_w_popstrat))
-    return mt3.annotate_cols(__y_w_popstrat = (mt3.__y_w_popstrat-y_w_popstrat_stats.mean)/y_w_popstrat_stats.stdev)
-
-@typecheck(mt=MatrixTable, 
            genotype=oneof(expr_int32, 
                           expr_int64, 
                           expr_float32, 
@@ -176,6 +211,39 @@ def sim_phenotypes(mt, genotype, h2, beta, popstrat=None, popstrat_s2=1):
                              y=mt4.__y, 
                              popstrat=mt4.__popstrat, 
                              popstrat_s2=hl.eval(mt4.__popstrat_s2))
+
+@typecheck(mt=MatrixTable, 
+           genotype=oneof(expr_int32,
+                          expr_int64, 
+                          expr_float32, 
+                          expr_float64))
+def normalize_genotypes(mt, genotype):
+    '''Normalizes genotypes'''
+    print('\rNormalizing genotypes...')
+    mt1 = mt.annotate_entries(__gt = genotype)
+    mt2 = mt1.annotate_rows(__gt_stats = hl.agg.stats(mt1.__gt))
+    return mt2.annotate_entries(__norm_gt = (mt2.__gt-mt2.__gt_stats.mean)/mt2.__gt_stats.stdev)  
+
+@typecheck(mt=MatrixTable, 
+           y=oneof(expr_int32,expr_float64),
+           popstrat=oneof(nullable(expr_int32),nullable(expr_float64)),
+           popstrat_s2=oneof(float,
+                             int,
+                             expr_int32,
+                             expr_int64,
+                             expr_float32,
+                             expr_float64))
+def add_pop_strat(mt, y, popstrat, popstrat_s2=1):
+    '''Adds popstrat to a phenotype'''
+    print('\rAdding population stratification (popstrat_s2 = {})'.format(popstrat_s2))
+    mt1 = mt.annotate_cols(__y = y, 
+                           __popstrat = popstrat)
+    mt1 = mt1.annotate_globals(__popstrat_s2 = popstrat_s2)
+    popstrat_stats = mt1.aggregate_cols(hl.agg.stats(mt1.__popstrat), _localize=True)
+    mt2 = mt1.annotate_cols(__norm_popstrat = (mt1.__popstrat-popstrat_stats.mean)/popstrat_stats.stdev)
+    mt3 = mt2.annotate_cols(__y_w_popstrat = mt2.__y + mt2.__norm_popstrat*hl.sqrt(mt2.__popstrat_s2))
+    y_w_popstrat_stats = mt3.aggregate_cols(hl.agg.stats(mt3.__y_w_popstrat))
+    return mt3.annotate_cols(__y_w_popstrat = (mt3.__y_w_popstrat-y_w_popstrat_stats.mean)/y_w_popstrat_stats.stdev)
 
 @typecheck(mt = MatrixTable, 
            str_expr=str)
@@ -216,71 +284,3 @@ def add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,annot=None,popstra
                          popstrat_s2=popstrat_s2,path_to_save=path_to_save)
     mt = mt._annotate_all(global_exprs={'sim_desc{}'.format(sim_id):sim_desc})
     return mt
-
-@typecheck(mt=MatrixTable, 
-           genotype=oneof(expr_int32,
-                          expr_int64, 
-                          expr_float32, 
-                          expr_float64),
-           h2=oneof(float,int),
-           pi=oneof(float,int),
-           annot=oneof(nullable(expr_int32),
-                       nullable(expr_float64)),
-           popstrat=oneof(nullable(expr_int32),
-                          nullable(expr_float64)),
-           popstrat_s2=oneof(float,
-                             int,
-                             expr_int32,
-                             expr_int64,
-                             expr_float32,
-                             expr_float64),
-           path_to_save=nullable(str))
-def simulate(mt, genotype, h2, pi=1, annot=None, popstrat=None, popstrat_s2 = 1,path_to_save=None):
-    ''' Simulates phenotypes. 
-        Options: Infinitesimal, spike/slab, annotation-informed, population stratification'''
-    print_header(h2=h2, 
-                 pi=pi, 
-                 annot=annot, 
-                 popstrat=popstrat, 
-                 popstrat_s2=popstrat_s2, 
-                 path_to_save=path_to_save)
-    
-    starttime = datetime.now()
-    
-    mt1 = annotate_w_temp_fields(mt=mt, 
-                                 genotype=genotype,
-                                 h2=h2, 
-                                 pi=pi, 
-                                 annot=annot, 
-                                 popstrat=popstrat, 
-                                 popstrat_s2=popstrat_s2)
-    
-    mt2 = make_betas(mt=mt1, 
-                     h2=h2, 
-                     pi=pi, 
-                     annot=None if annot is None else mt1.__annot_temp)
-        
-    mt2 = mt2.rename({'__beta':'__beta_temp'})
-
-    if popstrat is None:
-        mt3 = sim_phenotypes(mt=mt2, 
-                             genotype=mt2.__gt_temp, 
-                             h2=h2, 
-                             beta=mt2.__beta_temp)
-    if popstrat is not None:
-        mt3 =  sim_phenotypes(mt=mt2, 
-                              genotype=mt2.__gt_temp, 
-                              h2=h2, 
-                              beta=mt2.__beta_temp,
-                              popstrat=mt2.__popstrat_temp, 
-                              popstrat_s2=mt2.__popstrat_s2_temp)
-        
-    mt4 = clean_fields(mt3, '_temp')
-    stoptime = datetime.now()
-    runtime = stoptime-starttime
-    mt5 = add_sim_description(mt4,h2,starttime,stoptime,runtime,pi,annot,popstrat,popstrat_s2,path_to_save)
-    print('\rFinished simulation! (runtime={} min)'.format(np.round((runtime.seconds+runtime.microseconds/1e6)/60, 4)).ljust(100))
-    if path_to_save is not None:
-        print('\rWriting simulation to: {}'.format(path_to_save))
-        mt5.write(path_to_save)
-    return mt5
