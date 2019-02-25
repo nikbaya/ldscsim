@@ -104,6 +104,19 @@ def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, ann
         mt5.write(path_to_save)
     return mt5
 
+@typecheck(mt=MatrixTable,
+           genotype=oneof(expr_int32,
+                          expr_float64),
+           popstrat=oneof(nullable(expr_int32),
+                          nullable(expr_float64)),)
+def check_matching_mt_sources(mt,genotype,popstrat):
+    '''checks that mt matches source mt of genotype and popstrat'''
+    if popstrat is not None:
+        assert(mt == genotype._indices.source and mt == popstrat._indices.source), 'mt must match mt source of genotype and popstrat'
+    else:
+        assert(mt == genotype._indices.source), 'mt must match mt source of genotype'
+        
+
 @typecheck(h2=oneof(nullable(float),
                     nullable(int)),
            pi=oneof(float,int),
@@ -335,7 +348,7 @@ def sim_phenotypes(mt, genotype, h2, beta, popstrat=None, popstrat_s2=1):
                              popstrat=mt4.__popstrat, 
                              popstrat_s2=hl.eval(popstrat_s2))
 
-@typecheck(genotype=oneof(expr_int32,
+@typecheck(genotypes=oneof(expr_int32,
                           expr_int64, 
                           expr_float32, 
                           expr_float64))
