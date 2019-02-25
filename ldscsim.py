@@ -98,7 +98,7 @@ def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, ann
                               tau_dict=tau_dict,annot_pattern=annot_pattern,
                               h2_normalize=h2_normalize,popstrat=popstrat,
                               popstrat_s2=popstrat_s2,path_to_save=path_to_save)
-    print('\rFinished simulation! (runtime={} min)'.format(np.round((runtime.seconds+runtime.microseconds/1e6)/60, 4)).ljust(100))
+    print('\rFinished simulation! (runtime={} min)'.format(np.round((runtime.total_seconds())/60, 4)).ljust(100))
     if path_to_save is not None:
         print('\rWriting simulation to: {}'.format(path_to_save))
         mt5.write(path_to_save)
