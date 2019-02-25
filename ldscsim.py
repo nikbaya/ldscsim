@@ -237,7 +237,6 @@ def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_patte
                 '(default tau: 1)' if tau_dict is None else 'using tau dict'))
         mt1 = agg_annotations(mt,tau_dict=tau_dict,annot_pattern=annot_pattern)
         annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__annot))
-        print(annot_sum)
         return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot*(h2/annot_sum if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
     else:
         print('Simulating betas using {} model w/ h2 = {}'.format(('infinitesimal' if pi is 1 else 'spike & slab'),h2))
