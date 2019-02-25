@@ -252,8 +252,8 @@ def agg_annotations(mt,tau_dict=None,annot_pattern=None):
     by tau_dict value, the annotation field name is specified by tau_dict key.'''
     assert (annot_pattern is not None or tau_dict is not None), "annot_pattern and tau_dict cannot both be None"
     mt = mt._annotate_all(row_exprs={'__annot':0},
-                          global_exprs={'__tau_dict':tau_dict if tau_dict is not None else hl.null('dict'),
-                                        '__annot_pattern':annot_pattern if annot_pattern is not None else hl.null('str')})
+                          global_exprs={'__tau_dict':none_to_null(tau_dict),
+                                        '__annot_pattern':none_to_null(annot_pattern)})
     tau_dict = get_tau_dict(tb=mt,annot_pattern=annot_pattern, tau_ref_dict=tau_dict)
     if str not in map(type,tau_dict.keys()): #if none of the keys are strings (maybe they are row exprs)
         pass
