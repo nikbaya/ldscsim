@@ -159,8 +159,10 @@ def print_header(h2, pi, is_annot_inf, h2_normalize, popstrat, popstrat_s2, path
                           expr_float64),
            h2=oneof(float,int),
            pi=oneof(float,int),
-           annot=oneof(nullable(expr_int32),
-                       nullable(expr_float64)),
+           is_annot_inf=bool,
+           tau_dict=nullable(dict),
+           annot_pattern=nullable(str),
+           h2_normalize=bool,
            popstrat=oneof(nullable(expr_int32),
                           nullable(expr_float64)),
            popstrat_s2=oneof(float,
@@ -169,29 +171,30 @@ def print_header(h2, pi, is_annot_inf, h2_normalize, popstrat, popstrat_s2, path
                              expr_int64,
                              expr_float32,
                              expr_float64))
-def annotate_w_temp_fields(mt, genotype, h2, pi=1, annot=None, popstrat=None, popstrat_s2=1):
+def annotate_w_temp_fields(mt, genotype, h2, pi=1, is_annot_inf=False, tau_dict=None,
+                           annot_pattern=None, popstrat=None, popstrat_s2=1):
     '''Annotate mt with temporary fields of simulation parameters'''
-    if annot is None and popstrat is None: #Infinitesimal/SpikeSlab
-        mt1 = mt._annotate_all(entry_exprs={'__gt_temp':genotype},
-                               global_exprs={'__h2_temp':h2, 
-                                             '__pi_temp':pi})
-    elif annot is not None and popstrat is None: #AnnotationInformed
-        mt1 = mt._annotate_all(row_exprs={'__annot_temp':annot},
-                               entry_exprs={'__gt_temp':genotype},
-                               global_exprs={'__h2_temp':h2})
-    elif annot is None and popstrat is not None: #Infinitesimal/SpikeSlab + popstrat
-        mt1 = mt._annotate_all(col_exprs={'__popstrat_temp':popstrat},
-                               entry_exprs={'__gt_temp':genotype},
-                               global_exprs={'__h2_temp':h2,
-                                             '__pi_temp':pi,
-                                             '__popstrat_s2_temp':popstrat_s2})
-    elif annot is not None and popstrat is not None: #AnnotationInformed + popstrat
-        mt1 = mt._annotate_all(row_exprs={'__annot_temp':annot},
-                               col_exprs={'__popstrat_temp':popstrat},
-                               entry_exprs={'__gt_temp':genotype},
-                               global_exprs={'__h2_temp':h2,
-                                             '__popstrat_s2_temp':popstrat_s2})
+    mt1 = mt._annotate_all(col_exprs={'__popstrat_temp':none_to_null(popstrat)},
+                           entry_exprs={'__gt_temp':genotype},
+                           global_exprs={'__h2_temp':none_to_null(h2), 
+                                         '__pi_temp':pi,
+                                         '__is_annot_inf_temp':is_annot_inf,
+                                         '__tau_dict_temp':none_to_null(tau_dict),
+                                         '__annot_pattern':none_to_null(annot_pattern)})
     return mt1
+
+@typecheck(arg=oneof(nullable(float),
+                     nullable(int),
+                     nullable(dict),
+                     nullable(str),
+                     nullable(expr_int32),
+                     nullable(expr_float_64)))
+def none_to_null(arg):
+    '''Converts arg to hl null representation if arg is None'''
+    if arg is None:
+        return hl.null('str')
+    else:
+        return arg
 
 @typecheck(mt=MatrixTable, 
            h2=oneof(nullable(float),
@@ -212,7 +215,7 @@ def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_patte
                 '(default tau: 1)' if tau_dict is None else 'using tau dict'))
         mt1 = agg_annotations(mt,tau_dict,annot_pattern=annot_pattern)
         annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__annot))
-        return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot/annot_sum*(h2 if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
+        return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot/(annot_sum*h2 if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
     else:
         print('Simulating betas using {} model w/ h2 = {}'.format(('infinitesimal' if pi is 1 else 'spike & slab'),h2))
         mt1 = mt.annotate_globals(__h2 = h2, __pi = pi)
@@ -378,7 +381,8 @@ def clean_fields(mt, str_expr):
     return mt
 
 @typecheck(mt=MatrixTable, 
-           h2=oneof(float,int),
+           h2=oneof(nullable(float),
+                    nullable(int)),
            starttime=datetime,
            stoptime=datetime,
            runtime=timedelta,
@@ -396,19 +400,17 @@ def clean_fields(mt, str_expr):
                              expr_float32,
                              expr_float64),
            path_to_save=nullable(str))
-def add_sim_description(mt,h2,starttime,stoptime,runtime,pi=1,is_annot_inf=False,
+def add_sim_description(mt,starttime,stoptime,runtime,h2=None,pi=1,is_annot_inf=False,
                         tau_dict=None, annot_pattern=None,h2_normalize=False,
                         popstrat=None,popstrat_s2=1,path_to_save=None):
     '''Annotates mt with description of simulation'''
     sim_id = 0
     while (str(sim_id) in [x.strip('sim_desc') for x in list(mt.globals) if 'sim_desc' in x]):
         sim_id += 1
-    for arg in [tau_dict,annot_pattern,popstrat,path_to_save]: #convert None args to hl null expression
-        if arg  is None: 
-            arg = hl.null('str') # arbitrarily chose 'str' for all args
-    sim_desc = hl.struct(h2=h2,starttime=str(starttime),stoptime=str(stoptime),
-                         runtime=str(runtime),pi=pi,is_annot_inf=is_annot_inf,
-                         annot_pattern=annot_pattern,tau_dict=tau_dict,
+    sim_desc = hl.struct(h2=h2 if h2 is not None else hl.null('str'),pi=pi,
+                         starttime=str(starttime),stoptime=str(stoptime),
+                         runtime=str(runtime),is_annot_inf=is_annot_inf,
+                         annot_pattern=annot_pattern if annot_patter,tau_dict=tau_dict,
                          h2_normalize=h2_normalize, popstrat=popstrat,
                          popstrat_s2=popstrat_s2,path_to_save=path_to_save)
     mt = mt._annotate_all(global_exprs={'sim_desc{}'.format(sim_id):sim_desc})
