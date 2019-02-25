@@ -107,10 +107,13 @@ def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, ann
 @typecheck(mt=MatrixTable,
            genotype=oneof(expr_int32,
                           expr_float64),
+           beta=nullable(expr_float64),
            popstrat=oneof(nullable(expr_int32),
-                          nullable(expr_float64)),)
-def check_matching_mt_sources(mt,genotype,popstrat):
+                          nullable(expr_float64)))
+def check_mt_sources(mt,genotype,beta=None,popstrat=None):
     '''checks that mt matches source mt of genotype and popstrat'''
+    if beta is not None:
+        assert(mt == genotype._indices.source and mt == beta._indices.source), 'mt must match mt source of genotype and beta'
     if popstrat is not None:
         assert(mt == genotype._indices.source and mt == popstrat._indices.source), 'mt must match mt source of genotype and popstrat'
     else:
@@ -138,6 +141,7 @@ def check_beta_args(h2=None, pi=1, is_annot_inf=False, tau_dict=None,
         assert (h2 != None), 'h2 cannot be None, unless running annotation-informed model'
         assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
         assert (pi >= 0 and pi <= 1), 'pi must be in [0,1]'
+        assert h2_normalize == True, 'h2_normalize cannot be true unless running annotation-informed model'
 
 @typecheck(h2=oneof(nullable(float),
                     nullable(int)),
@@ -190,6 +194,7 @@ def print_header(h2, pi, is_annot_inf, h2_normalize, popstrat, popstrat_s2, path
 def annotate_w_temp_fields(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None,
                            annot_pattern=None, h2_normalize=True, popstrat=None, popstrat_s2=1):
     '''Annotate mt with temporary fields of simulation parameters'''
+    check_mt_sources(mt=mt,genotype=genotype)
     mt1 = mt._annotate_all(col_exprs={'__popstrat_temp':none_to_null(popstrat)},
                            entry_exprs={'__gt_temp':genotype},
                            global_exprs={'__h2_temp':none_to_null(h2), 
@@ -332,6 +337,7 @@ def add_annot_pattern(mt, annot_list, annot_pattern, prefix=True):
                              expr_float64))
 def sim_phenotypes(mt, genotype, h2, beta, popstrat=None, popstrat_s2=1):
     '''Simulate phenotypes given betas and genotypes. Adding population stratification is optional'''
+    check_mt_sources(mt,genotype,beta)
     mt1 = mt._annotate_all(row_exprs={'__beta':beta},
                            col_exprs={'__popstrat':none_to_null(popstrat)},
                            entry_exprs={'__gt':genotype},
