@@ -331,12 +331,12 @@ def add_annot_pattern(mt, annot_list, annot_pattern, prefix=True):
                              expr_float64))
 def sim_phenotypes(mt, genotype, h2, beta, popstrat=None, popstrat_s2=1):
     '''Simulate phenotypes given betas and genotypes. Adding population stratification is optional'''
-    print('\rCalculating phenotypes{}...'.format('' if popstrat is None else ' w/ population stratification').ljust(81))
     mt1 = mt._annotate_all(row_exprs={'__beta':beta},
                            col_exprs={'__popstrat':none_to_null(popstrat)},
                            entry_exprs={'__gt':genotype},
                            global_exprs={'__popstrat_s2':popstrat_s2})
     mt2 = normalize_genotypes(mt1.__gt)
+    print('\rCalculating phenotypes{}...'.format('' if popstrat is None else ' w/ population stratification').ljust(81))
     mt3 = mt2.annotate_cols(__y_no_noise = hl.agg.sum(mt2.__beta * mt2.__norm_gt))
     mt4 = mt3.annotate_cols(__y = mt3.__y_no_noise + hl.rand_norm(0,hl.sqrt(1-h2)))
 
