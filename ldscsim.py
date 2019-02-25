@@ -172,7 +172,8 @@ def print_header(h2, pi, is_annot_inf, h2_normalize, popstrat, popstrat_s2, path
                           expr_int64, 
                           expr_float32, 
                           expr_float64),
-           h2=oneof(float,int),
+           h2=oneof(nullable(float),
+                    nullable(int)),
            pi=oneof(float,int),
            is_annot_inf=bool,
            tau_dict=nullable(dict),
@@ -186,7 +187,7 @@ def print_header(h2, pi, is_annot_inf, h2_normalize, popstrat, popstrat_s2, path
                              expr_int64,
                              expr_float32,
                              expr_float64))
-def annotate_w_temp_fields(mt, genotype, h2, pi=1, is_annot_inf=False, tau_dict=None,
+def annotate_w_temp_fields(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None,
                            annot_pattern=None, h2_normalize=True, popstrat=None, popstrat_s2=1):
     '''Annotate mt with temporary fields of simulation parameters'''
     mt1 = mt._annotate_all(col_exprs={'__popstrat_temp':none_to_null(popstrat)},
