@@ -228,7 +228,6 @@ def none_to_null(arg):
            h2_normalize=bool)
 def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, h2_normalize=True):
     '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''  
-    print(annot_pattern)
     check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
                     annot_pattern=annot_pattern,h2_normalize=h2_normalize)
     M = mt.count_rows()
