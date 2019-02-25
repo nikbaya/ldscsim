@@ -228,6 +228,7 @@ def none_to_null(arg):
            h2_normalize=bool)
 def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, h2_normalize=True):
     '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''  
+    print(annot_pattern)
     check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
                     annot_pattern=annot_pattern,h2_normalize=h2_normalize)
     M = mt.count_rows()
@@ -235,7 +236,7 @@ def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_patte
         print('\rSimulating {} annotation-informed betas {}'.format(
                 'h2-normalized' if h2_normalize else '',
                 '(default tau: 1)' if tau_dict is None else 'using tau dict'))
-        mt1 = agg_annotations(mt,tau_dict,annot_pattern=annot_pattern)
+        mt1 = agg_annotations(mt,tau_dict=tau_dict,annot_pattern=annot_pattern)
         annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__annot))
         return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot/(annot_sum*h2 if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
     else:
@@ -249,7 +250,7 @@ def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_patte
 def agg_annotations(mt,tau_dict=None,annot_pattern=None):
     '''Aggregates annotations by linear combination. The coefficient are specified
     by tau_dict value, the annotation field name is specified by tau_dict key.'''
-    assert (annot_pattern is None and tau_dict is None), "annot_pattern and tau_dict cannot both be None"
+    assert (annot_pattern is not None or tau_dict is not None), "annot_pattern and tau_dict cannot both be None"
     mt = mt._annotate_all(row_exprs={'__annot':0},
                           global_exprs={'__tau_dict':tau_dict if tau_dict is not None else hl.null('dict'),
                                         '__annot_pattern':annot_pattern if annot_pattern is not None else hl.null('str')})
