@@ -39,7 +39,7 @@ from datetime import datetime, timedelta
                              expr_float64),
            path_to_save=nullable(str))
 def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None,
-             h2_normalize=False, popstrat=None, popstrat_s2 = 1,path_to_save=None):
+             h2_normalize=True, popstrat=None, popstrat_s2 = 1,path_to_save=None):
     ''' Simulates phenotypes. 
         Options: 
             models for betas: Infinitesimal, spike/slab, annotation-informed
@@ -62,6 +62,8 @@ def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, ann
                                  h2=h2, 
                                  pi=pi, 
                                  is_annot_inf=is_annot_inf,
+                                 tau_dict=tau_dict,
+                                 annot_pattern=annot_pattern,
                                  popstrat=popstrat, 
                                  popstrat_s2=popstrat_s2)
     
@@ -110,7 +112,7 @@ def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, tau_dict=None, ann
            annot_pattern=nullable(str),
            h2_normalize=bool)
 def check_beta_args(h2=None, pi=1, is_annot_inf=False, tau_dict=None, 
-                    annot_pattern=None,h2_normalize=False):
+                    annot_pattern=None,h2_normalize=True):
     '''checks beta args for simulate() and make_betas()'''
     if is_annot_inf: #if using the annotation-informed model
         assert (tau_dict != None or annot_pattern != None), 'If using annotation-informed model, both tau_dict and annot_pattern cannot be None'
@@ -172,7 +174,7 @@ def print_header(h2, pi, is_annot_inf, h2_normalize, popstrat, popstrat_s2, path
                              expr_float32,
                              expr_float64))
 def annotate_w_temp_fields(mt, genotype, h2, pi=1, is_annot_inf=False, tau_dict=None,
-                           annot_pattern=None, popstrat=None, popstrat_s2=1):
+                           annot_pattern=None, h2_normalize=True, popstrat=None, popstrat_s2=1):
     '''Annotate mt with temporary fields of simulation parameters'''
     mt1 = mt._annotate_all(col_exprs={'__popstrat_temp':none_to_null(popstrat)},
                            entry_exprs={'__gt_temp':genotype},
@@ -180,7 +182,8 @@ def annotate_w_temp_fields(mt, genotype, h2, pi=1, is_annot_inf=False, tau_dict=
                                          '__pi_temp':pi,
                                          '__is_annot_inf_temp':is_annot_inf,
                                          '__tau_dict_temp':none_to_null(tau_dict),
-                                         '__annot_pattern':none_to_null(annot_pattern)})
+                                         '__annot_pattern_temp':none_to_null(annot_pattern),
+                                         '__h2_normalize_temp':h2_normalize})
     return mt1
 
 @typecheck(arg=oneof(nullable(float),
@@ -188,7 +191,7 @@ def annotate_w_temp_fields(mt, genotype, h2, pi=1, is_annot_inf=False, tau_dict=
                      nullable(dict),
                      nullable(str),
                      nullable(expr_int32),
-                     nullable(expr_float_64)))
+                     nullable(expr_float64)))
 def none_to_null(arg):
     '''Converts arg to hl null representation if arg is None'''
     if arg is None:
@@ -204,7 +207,7 @@ def none_to_null(arg):
            tau_dict=nullable(dict),
            annot_pattern=nullable(str),
            h2_normalize=bool)
-def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, h2_normalize=False):
+def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, h2_normalize=True):
     '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''  
     check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
                     annot_pattern=annot_pattern,h2_normalize=h2_normalize)
@@ -401,17 +404,16 @@ def clean_fields(mt, str_expr):
                              expr_float64),
            path_to_save=nullable(str))
 def add_sim_description(mt,starttime,stoptime,runtime,h2=None,pi=1,is_annot_inf=False,
-                        tau_dict=None, annot_pattern=None,h2_normalize=False,
+                        tau_dict=None, annot_pattern=None,h2_normalize=True,
                         popstrat=None,popstrat_s2=1,path_to_save=None):
     '''Annotates mt with description of simulation'''
     sim_id = 0
     while (str(sim_id) in [x.strip('sim_desc') for x in list(mt.globals) if 'sim_desc' in x]):
         sim_id += 1
-    sim_desc = hl.struct(h2=h2 if h2 is not None else hl.null('str'),pi=pi,
-                         starttime=str(starttime),stoptime=str(stoptime),
-                         runtime=str(runtime),is_annot_inf=is_annot_inf,
-                         annot_pattern=annot_pattern if annot_patter,tau_dict=tau_dict,
-                         h2_normalize=h2_normalize, popstrat=popstrat,
-                         popstrat_s2=popstrat_s2,path_to_save=path_to_save)
+    sim_desc = hl.struct(h2=none_to_null(h2),pi=pi,starttime=str(starttime),
+                         stoptime=str(stoptime),runtime=str(runtime),
+                         is_annot_inf=is_annot_inf,tau_dict=none_to_null(tau_dict),
+                         annot_pattern=none_to_null(annot_pattern),h2_normalize=h2_normalize, 
+                         popstrat=popstrat,popstrat_s2=popstrat_s2,path_to_save=path_to_save)
     mt = mt._annotate_all(global_exprs={'sim_desc{}'.format(sim_id):sim_desc})
     return mt
