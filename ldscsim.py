@@ -251,14 +251,14 @@ def agg_annotations(mt,tau_dict=None,annot_pattern=None):
     '''Aggregates annotations by linear combination. The coefficient are specified
     by tau_dict value, the annotation field name is specified by tau_dict key.'''
     assert (annot_pattern is not None or tau_dict is not None), "annot_pattern and tau_dict cannot both be None"
+    tau_dict = get_tau_dict(tb=mt,annot_pattern=annot_pattern, tau_ref_dict=tau_dict)
     mt = mt._annotate_all(row_exprs={'__annot':0},
                           global_exprs={'__tau_dict':none_to_null(tau_dict),
                                         '__annot_pattern':none_to_null(annot_pattern)})
-    tau_dict = get_tau_dict(tb=mt,annot_pattern=annot_pattern, tau_ref_dict=tau_dict)
     if str not in map(type,tau_dict.keys()): #if none of the keys are strings (maybe they are row exprs)
         pass
     print('Annotation fields and associated tau values used in annotation aggregation: {}'.format(tau_dict))
-    for annot,tau in mt.tau_dict.items():
+    for annot,tau in tau_dict.items():
         mt = mt.annotate_rows(__annot = mt.__annot + tau*mt[annot])
     return mt
 
