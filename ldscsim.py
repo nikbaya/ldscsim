@@ -221,7 +221,7 @@ def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_patte
         return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot/(annot_sum*h2 if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
     else:
         print('Simulating betas using {} model w/ h2 = {}'.format(('infinitesimal' if pi is 1 else 'spike & slab'),h2))
-        mt1 = mt.annotate_globals(__h2 = h2, __pi = pi)
+        mt1 = mt.annotate_globals(__h2 = none_to_null(h2), __pi = pi)
         return mt1.annotate_rows(__beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2/(M*pi))))
 
 @typecheck(mt=MatrixTable,
@@ -319,17 +319,11 @@ def add_annot_pattern(mt, annot_list, annot_pattern, prefix=True):
 def sim_phenotypes(mt, genotype, h2, beta, popstrat=None, popstrat_s2=1):
     '''Simulate phenotypes given betas and genotypes. Adding population stratification is optional'''
     print('\rCalculating phenotypes{}...'.format('' if popstrat is None else ' w/ population stratification').ljust(81))
-    if popstrat is None:
-        mt1 = mt._annotate_all(row_exprs={'__beta':beta},
-                               entry_exprs={'__gt':genotype})
-    else:
-        mt1 = mt._annotate_all(row_exprs={'__beta':beta},
-                               col_exprs={'__popstrat':popstrat},
-                               entry_exprs={'__gt':genotype},
-                               global_exprs={'__popstrat_s2':popstrat_s2})
-
-    mt2 = normalize_genotypes(mt1,
-                              mt1.__gt)
+    mt1 = mt._annotate_all(row_exprs={'__beta':beta},
+                           col_exprs={'__popstrat':none_to_null(popstrat)},
+                           entry_exprs={'__gt':genotype},
+                           global_exprs={'__popstrat_s2':popstrat_s2})
+    mt2 = normalize_genotypes(mt1,mt1.__gt)
     mt3 = mt2.annotate_cols(__y_no_noise = hl.agg.sum(mt2.__beta * mt2.__norm_gt))
     mt4 = mt3.annotate_cols(__y = mt3.__y_no_noise + hl.rand_norm(0,hl.sqrt(1-h2)))
 
@@ -339,7 +333,7 @@ def sim_phenotypes(mt, genotype, h2, beta, popstrat=None, popstrat_s2=1):
         return add_pop_strat(mt4, 
                              y=mt4.__y, 
                              popstrat=mt4.__popstrat, 
-                             popstrat_s2=hl.eval(mt4.__popstrat_s2))
+                             popstrat_s2=hl.eval(popstrat_s2))
 
 @typecheck(mt=MatrixTable, 
            genotype=oneof(expr_int32,
@@ -354,8 +348,10 @@ def normalize_genotypes(mt, genotype):
     return mt2.annotate_entries(__norm_gt = (mt2.__gt-mt2.__gt_stats.mean)/mt2.__gt_stats.stdev)  
 
 @typecheck(mt=MatrixTable, 
-           y=oneof(expr_int32,expr_float64),
-           popstrat=oneof(nullable(expr_int32),nullable(expr_float64)),
+           y=oneof(expr_int32,
+                   expr_float64),
+           popstrat=oneof(expr_int32,
+                          expr_float64),
            popstrat_s2=oneof(float,
                              int,
                              expr_int32,
@@ -414,6 +410,6 @@ def add_sim_description(mt,starttime,stoptime,runtime,h2=None,pi=1,is_annot_inf=
                          stoptime=str(stoptime),runtime=str(runtime),
                          is_annot_inf=is_annot_inf,tau_dict=none_to_null(tau_dict),
                          annot_pattern=none_to_null(annot_pattern),h2_normalize=h2_normalize, 
-                         popstrat=popstrat,popstrat_s2=popstrat_s2,path_to_save=path_to_save)
+                         popstrat=none_to_null(popstrat),popstrat_s2=popstrat_s2,path_to_save=none_to_null(path_to_save))
     mt = mt._annotate_all(global_exprs={'sim_desc{}'.format(sim_id):sim_desc})
     return mt
