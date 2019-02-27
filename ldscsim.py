@@ -213,7 +213,7 @@ def make_betas(mt, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None, anno
                     annot_regex=annot_regex,h2_normalize=h2_normalize)
     M = mt.count_rows()
     if is_annot_inf:
-        print(f'\rSimulating {} annotation-informed betas {}'.format(
+        print('\rSimulating {} annotation-informed betas {}'.format(
                 'h2-normalized' if h2_normalize else '',
                 '(default tau: 1)' if annot_coef_dict is None else 'using tau dict'))
         mt1 = agg_fields(mt=mt,coef_dict=annot_coef_dict,regex=annot_regex)
