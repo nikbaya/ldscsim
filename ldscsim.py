@@ -47,8 +47,6 @@ def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=No
                  is_annot_inf=is_annot_inf, 
                  h2_normalize=h2_normalize,
                  is_popstrat=is_popstrat, 
-                 cov_coef_dict=cov_coef_dict,
-                 cov_regex=cov_regex,
                  path_to_save=path_to_save)
     mt1 = annotate_w_temp_fields(mt=mt, 
                                  genotype=genotype,
@@ -72,8 +70,9 @@ def simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=No
                           genotype=mt2.__gt_temp, 
                           h2=h2, 
                           beta=mt2.__beta_temp,
-                          popstrat=mt2.__popstrat_temp, 
-                          popstrat_s2=mt2.__popstrat_s2_temp)
+                          is_popstrat=is_popstrat,
+                          cov_coef_dict=cov_coef_dict,
+                          cov_regex=cov_regex)
     mt4 = clean_fields(mt3, '_temp')
     stoptime = datetime.now()
     runtime = stoptime-starttime
@@ -321,14 +320,9 @@ def add_regex_pattern(mt, field_list, regex_pattern, prefix=True, axis='rows'):
                           expr_float64),
            h2=oneof(float,int),
            beta=expr_float64,
-           popstrat=oneof(nullable(expr_int32),
-                          nullable(expr_float64)),
-           popstrat_s2=oneof(float,
-                             int,
-                             expr_int32,
-                             expr_int64,
-                             expr_float32,
-                             expr_float64))
+           is_popstrat=bool,
+           cov_coef_dict=nullable(dict),
+           cov_regex=nullable(str))
 def sim_phenotypes(mt, genotype, h2, beta, is_popstrat=False, cov_coef_dict=None, cov_regex=None):
     '''Simulate phenotypes given betas and genotypes. Adding population stratification is optional'''
     check_mt_sources(mt,genotype,beta)
@@ -357,7 +351,7 @@ def sim_phenotypes(mt, genotype, h2, beta, is_popstrat=False, cov_coef_dict=None
                           expr_float64))
 def normalize_genotypes(genotypes):
     '''Normalizes genotypes'''
-    print('\rNormalizing genotypes...').ljust(81)
+    print('\rNormalizing genotypes...'.ljust(81))
     mt = genotypes._indices.source #get source matrix table of genotypes
     mt1 = mt.annotate_entries(__gt = genotypes)
     mt2 = mt1.annotate_rows(__gt_stats = hl.agg.stats(mt1.__gt))
@@ -371,7 +365,7 @@ def normalize_genotypes(genotypes):
 def add_popstrat(mt, y, cov_coef_dict=None, cov_regex=None):
     '''Adds popstrat to a phenotype'''
     check_popstrat_args(cov_coef_dict=cov_coef_dict,cov_regex=cov_regex)
-    print('\rAdding population stratification...')
+    print('\rAdding population stratification...'.ljust(81))
     mt = mt.annotate_cols(__y = y)
     mt = mt.annotate_globals(__cov_coef_dict=none_to_null(cov_coef_dict),
                              __cov_regex=none_to_null(cov_regex))
@@ -413,7 +407,7 @@ def add_sim_description(mt,starttime,stoptime,runtime,h2=None,pi=1,is_annot_inf=
                          stoptime=str(stoptime),runtime=str(runtime),
                          is_annot_inf=is_annot_inf,annot_coef_dict=none_to_null(annot_coef_dict),
                          annot_regex=none_to_null(annot_regex),h2_normalize=h2_normalize, 
-                         is_popstrat=is_popstrat,cov_coef_dict=cov_coef_dict,
-                         cov_regex=cov_regex,path_to_save=none_to_null(path_to_save))
+                         is_popstrat=is_popstrat,cov_coef_dict=none_to_null(cov_coef_dict),
+                         cov_regex=none_to_null(cov_regex),path_to_save=none_to_null(path_to_save))
     mt = mt._annotate_all(global_exprs={f'sim_desc{sim_id}':sim_desc})
     return mt
