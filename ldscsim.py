@@ -123,24 +123,26 @@ def check_mt_sources(mt,genotype,beta=None,popstrat=None):
                     nullable(int)),
            pi=oneof(float,int),
            is_annot_inf=bool,
-           tau_dict=nullable(dict),
-           annot_pattern=nullable(str),
+           annot_coef_dict=nullable(dict),
+           annot_regex=nullable(str),
            h2_normalize=bool)
-def check_beta_args(h2=None, pi=1, is_annot_inf=False, tau_dict=None, 
-                    annot_pattern=None,h2_normalize=True):
+def check_beta_args(h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None, 
+                    annot_regex=None, h2_normalize=True):
     '''checks beta args for simulate() and make_betas()'''
     if is_annot_inf: #if using the annotation-informed model
-        assert (tau_dict != None or annot_pattern != None), 'If using annotation-informed model, both tau_dict and annot_pattern cannot be None'
+        assert (annot_coef_dict != None or annot_regex != None), 'If using annotation-informed model, both tau_dict and annot_pattern cannot be None'
         if h2_normalize:
             assert (h2 != None), 'h2 cannot be None when h2_normalize=True'
             assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
-        if h2_normalize == False and not (h2 >= 0 and h2 <= 0):
+        if not h2_normalize and h2 != None and not (h2 >= 0 and h2 <= 0):
             print('Ignoring non-valid h2={} (not in [0,1]) because h2_normalize=False'.format(h2))
     else:
         assert (h2 != None), 'h2 cannot be None, unless running annotation-informed model'
         assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
         assert (pi >= 0 and pi <= 1), 'pi must be in [0,1]'
         assert h2_normalize == True, 'h2_normalize cannot be true unless running annotation-informed model'
+        if annot_coef_dict != None or annot_regex != None:
+            print('Ignoring annotation-informed-related args because is_annot_inf=False')
 
 @typecheck(h2=oneof(nullable(float),
                     nullable(int)),
@@ -225,16 +227,16 @@ def none_to_null(arg):
            tau_dict=nullable(dict),
            annot_pattern=nullable(str),
            h2_normalize=bool)
-def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_pattern=None, h2_normalize=True):
+def make_betas(mt, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None, annot_regex=None, h2_normalize=True):
     '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''  
-    check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=tau_dict,
-                    annot_pattern=annot_pattern,h2_normalize=h2_normalize)
+    check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,tau_dict=annot_coef_dict,
+                    annot_pattern=annot_regex,h2_normalize=h2_normalize)
     M = mt.count_rows()
     if is_annot_inf:
         print('\rSimulating {} annotation-informed betas {}'.format(
                 'h2-normalized' if h2_normalize else '',
-                '(default tau: 1)' if tau_dict is None else 'using tau dict'))
-        mt1 = agg_annotations(mt,tau_dict=tau_dict,annot_pattern=annot_pattern)
+                '(default tau: 1)' if annot_coef_dict is None else 'using tau dict'))
+        mt1 = agg_fields(mt=mt,coef_dict=annot_coef_dict,regex=annot_regex)
         annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__annot))
         return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot*(h2/annot_sum if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
     else:
@@ -243,50 +245,62 @@ def make_betas(mt, h2=None, pi=1, is_annot_inf=False, tau_dict=None, annot_patte
         return mt1.annotate_rows(__beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2/(M*pi))))
 
 @typecheck(mt=MatrixTable,
-           tau_dict=nullable(dict),
-           annot_pattern=nullable(str))
-def agg_annotations(mt,tau_dict=None,annot_pattern=None):
-    '''Aggregates annotations by linear combination. The coefficient are specified
-    by tau_dict value, the annotation field name is specified by tau_dict key.'''
-    assert (annot_pattern is not None or tau_dict is not None), "annot_pattern and tau_dict cannot both be None"
-    tau_dict = get_tau_dict(tb=mt,annot_pattern=annot_pattern, tau_ref_dict=tau_dict)
-    mt = mt._annotate_all(row_exprs={'__annot':0},
-                          global_exprs={'__tau_dict':none_to_null(tau_dict),
-                                        '__annot_pattern':none_to_null(annot_pattern)})
-    if str not in map(type,tau_dict.keys()): #if none of the keys are strings (maybe they are row exprs)
-        pass
-    print('Annotation fields and associated tau values used in annotation aggregation: {}'.format(tau_dict))
-    for annot,tau in tau_dict.items():
+           coef_dict=nullable(dict),
+           regex=nullable(str))
+def agg_fields(mt,coef_dict=None,regex=None,axis='rows'):
+    '''Aggregates fields by linear combination. The coefficient are specified
+    by coef_dict value, the row (or col) field name is specified by coef_dict key.
+    By default, it searches row field annotations.'''
+    assert (regex != None or coef_dict != None), "regex and coef_dict cannot both be None"
+    assert axis is 'rows' or axis is 'cols', "axis must be 'rows' or 'cols'"
+    coef_dict = get_coef_dict(tb=mt,annot_pattern=regex, tau_ref_dict=coef_dict,axis=axis)
+    axis_field = 'annot' if axis=='rows' else 'cov'
+    if axis == 'rows':
+        mt = mt._annotate_all(row_exprs={'__agg_annot':0},
+                              global_exprs={f'__annot_coef_dict':none_to_null(coef_dict),
+                                            f'__annot_regex':none_to_null(regex)})
+    else:
+        mt = mt._annotate_all(col_exprs={'__agg_cov':0},
+                              global_exprs={f'__cov_coef_dict':none_to_null(coef_dict),
+                                            f'__cov_regex':none_to_null(regex)})
+        mt = mt._annotate_all(col_exprs={'__agg_cov':0})
+    print(f'Fields and associated coefficients used in {axis_field} aggregation: {coef_dict}')
+    for annot,tau in coef_dict.items():
         mt = mt.annotate_rows(__annot = mt.__annot + tau*mt[annot])
     return mt
 
-@typecheck(tb=oneof(MatrixTable,
-                    Table),
-           annot_pattern=nullable(str),
-           tau_ref_dict=nullable(dict))
-def get_tau_dict(tb, annot_pattern=None, tau_ref_dict=None):
-    '''Gets annotations matching annot_pattern and pairs with tau reference dict
+@typecheck(mt=oneof(MatrixTable),
+           regex=nullable(str),
+           coef_ref_dict=nullable(dict),
+           axis=str)
+def get_coef_dict(mt, regex=None, coef_ref_dict=None,axis='rows'):
+    '''Gets annotations matching regex and pairs with coefficient reference dict
     Number of annotations returned by annotation search should be less than or 
-    equal to number of keys in tau_ref_dict.'''
-    assert (annot_pattern != None or tau_ref_dict != None), "annot_pattern and tau_ref_dict cannot both be None"
-    if annot_pattern is None: 
-        tau_dict = {k: tau_ref_dict[k] for k in tau_ref_dict.keys() if k in tb.row} # take all row fields in mt matching keys in tau_dict
-        assert len(tau_dict) > 0, 'None of the keys in tau_ref_dict match any row fields' #if intersect is empty: return error
-        return tau_dict #return subset of tau_ref_dict
+    equal to number of keys in coef_ref_dict. By default, this searches row field
+    annotations.'''
+    assert (regex != None or coef_ref_dict != None), "regex and coef_ref_dict cannot both be None"
+    assert axis is 'rows' or axis is 'cols', "axis must be 'rows' or 'cols'"
+    fields_to_search = (mt.row if axis=='rows' else mt.col)
+    axis_field = 'annotation' if axis=='rows' else 'covariate' #when axis='rows' we're searching for annotations, axis='cols' searching for covariates
+    if regex is None: 
+        coef_dict = {k: coef_ref_dict[k] for k in coef_ref_dict.keys() if k in fields_to_search} # take all row (or col) fields in mt matching keys in coef_dict
+        assert len(coef_dict) > 0, f'None of the keys in coef_ref_dict match any {axis[:-1]} fields' #if intersect is empty: return error
+        return coef_dict #return subset of coef_ref_dict
     else:
-        pattern = re.compile(annot_pattern)
-        annots = [rf for rf in list(tb.row) if pattern.match(rf)] #annotation search in list of row fields
-        assert len(annots) > 0, 'No row fields matched annotation regex pattern: {}'.format(annot_pattern)
-        if tau_ref_dict is None:
-            print('Assuming tau = 1 for all annotations')
-            return {k: 1 for k in annots}
-        in_tau_ref_dict = set(annots).intersection(set(tau_ref_dict.keys())) #annots in tau_ref_dict
-        if in_tau_ref_dict != set(annots): # if >0 annots returned by search are not in tau_ref_dict
-            assert len(in_tau_ref_dict) > 0, 'annotation fields in tau_ref_dict do not match annotation search results' # if none of the annots returned by search are in tau_ref_dict
-            print('Ignored fields from annotation search: {}'.format(set(annots).difference(in_tau_ref_dict)))
-            print('To include ignored fields, change annot_pattern to regex match desired fields')
-            annots = list(in_tau_ref_dict)
-        return {k: tau_ref_dict[k] for k in annots}
+        pattern = re.compile(regex)
+        fields = [rf for rf in list(fields_to_search) if pattern.match(rf)] #regex search in list of row (or col) fields
+        assert len(fields) > 0, f'No {axis[:-1]} fields matched regex search: {regex}'
+        if coef_ref_dict is None:
+            print(f'Assuming coef = 1 for all {axis_field}s')
+            return {k: 1 for k in fields}
+        in_coef_ref_dict = set(fields).intersection(set(coef_ref_dict.keys())) #fields in coef_ref_dict
+        if in_coef_ref_dict != set(fields): # if >0 fields returned by search are not in coef_ref_dict
+            assert len(in_coef_ref_dict) > 0, f'None of the {axis_field} fields in coef_ref_dict match search results' # if none of the fields returned by search are in coef_ref_dict
+            fields_to_ignore=set(fields).difference(in_coef_ref_dict)
+            print(f'Ignored fields from {axis_field} search: {fields_to_ignore}')
+            print('To include ignored fields, change regex to match desired fields')
+            fields = list(in_coef_ref_dict)
+        return {k: coef_ref_dict[k] for k in fields}
 
 def make_tau_ref_dict():
     '''Make tau_ref_dict from tsv?/dataframe?/Hail Table?'''
