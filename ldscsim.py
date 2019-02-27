@@ -138,7 +138,7 @@ def print_header(h2, pi, is_annot_inf, h2_normalize, is_popstrat, path_to_save):
     header += 'pi = {} (default: 1)\n'.format(pi)
     header += 'Annotation-informed betas?: {}\n'.format('YES' if is_annot_inf else 'NO')
     header += 'h2-normalized betas?: {}\n'.format('YES' if h2_normalize else 'NO')
-    header += 'Add population stratification?: {}\n'.format('YES' if is_popstrat is None else 'NO')    
+    header += 'Add population stratification?: {}\n'.format('YES' if is_popstrat else 'NO')    
     header += '' if path_to_save is None else 'Saving to: {}\n'.format(path_to_save)
     header += '****************************************'
     print(header)
