@@ -104,14 +104,14 @@ def check_beta_args(h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None,
             assert (h2 != None), 'h2 cannot be None when h2_normalize=True'
             assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
         if not h2_normalize and h2 != None and not (h2 >= 0 and h2 <= 0):
-            print('Ignoring non-valid h2={} (not in [0,1]) because h2_normalize=False'.format(h2))
+            print('>> Ignoring non-valid h2={} (not in [0,1]) because h2_normalize=False'.format(h2))
     else:
         assert (h2 != None), 'h2 cannot be None, unless running annotation-informed model'
         assert (h2 >= 0 and h2 <= 1), 'h2 must be in [0,1]'
         assert (pi >= 0 and pi <= 1), 'pi must be in [0,1]'
         assert h2_normalize == True, 'h2_normalize cannot be true unless running annotation-informed model'
         if annot_coef_dict != None or annot_regex != None:
-            print('Ignoring annotation-informed-related args because is_annot_inf=False')
+            print('>> Ignoring annotation-informed-related args because is_annot_inf=False')
 
 @typecheck(is_popstrat=bool,
            cov_coef_dict=nullable(dict),
@@ -121,7 +121,7 @@ def check_popstrat_args(is_popstrat=True, cov_coef_dict=None, cov_regex=None):
         assert cov_coef_dict != None or cov_regex != None, 'If adding population stratification, cov_coef_dict and cov_regex cannot both be None'
     else:
         if cov_coef_dict != None or cov_regex != None:
-            print('Ignoring population stratification-related args because is_popstrat=False')
+            print('>> Ignoring population stratification-related args because is_popstrat=False')
 
 @typecheck(h2=oneof(nullable(float),
                     nullable(int)),
@@ -132,7 +132,7 @@ def check_popstrat_args(is_popstrat=True, cov_coef_dict=None, cov_regex=None):
            path_to_save=nullable(str))
 def print_header(h2, pi, is_annot_inf, h2_normalize, is_popstrat, path_to_save):
     '''Makes the header for the simulation'''
-    header =  '\n****************************************\n'
+    header =  '\r****************************************\n'
     header += 'Running simulation framework\n'
     header += 'h2 = {}\n'.format(h2) if (h2_normalize and h2 != None) else ''
     header += 'pi = {} (default: 1)\n'.format(pi)
@@ -214,10 +214,10 @@ def make_betas(mt, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None, anno
     if is_annot_inf:
         print('\rSimulating {} annotation-informed betas {}'.format(
                 'h2-normalized' if h2_normalize else '',
-                '(default tau: 1)' if annot_coef_dict is None else 'using tau dict'))
+                '(default coef: 1)' if annot_coef_dict is None else 'using annot_coef_dict'))
         mt1 = agg_fields(mt=mt,coef_dict=annot_coef_dict,regex=annot_regex)
         annot_sum = mt1.aggregate_rows(hl.agg.sum(mt1.__agg_annot))
-        return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__annot*(h2/annot_sum if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
+        return mt1.annotate_rows(__beta = hl.rand_norm(0, hl.sqrt(mt1.__agg_annot*(h2/annot_sum if h2_normalize else 1)))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
     else:
         print('Simulating betas using {} model w/ h2 = {}'.format(('infinitesimal' if pi is 1 else 'spike & slab'),h2))
         mt1 = mt.annotate_globals(__h2 = none_to_null(h2), __pi = pi)
@@ -235,14 +235,14 @@ def agg_fields(mt,coef_dict=None,regex=None,axis='rows'):
     assert axis is 'rows' or axis is 'cols', "axis must be 'rows' or 'cols'"
     coef_dict = get_coef_dict(mt=mt,regex=regex, coef_ref_dict=coef_dict,axis=axis)
     axis_field = 'annot' if axis=='rows' else 'cov'
-    expr = {'__agg_{axis_field}':0}
+    expr = {f'__agg_{axis_field}':0}
     mt = mt._annotate_all(row_exprs=expr if axis == 'rows' else {},
                           col_exprs=expr if axis == 'cols' else {},
                           global_exprs={f'__{axis_field}_coef_dict':none_to_null(coef_dict),
                                           f'__{axis_field}_regex':none_to_null(regex)})
     print(f'Fields and associated coefficients used in {axis_field} aggregation: {coef_dict}')
     for field,coef in coef_dict.items():
-        expr = {'__agg_{axis_field}':mt['__agg_{axis_field}']+coef*mt[field]}
+        expr = {f'__agg_{axis_field}':mt[f'__agg_{axis_field}']+coef*mt[field]}
         mt = mt._annotate_all(row_exprs=expr if axis == 'rows' else {},
                               col_exprs=expr if axis == 'cols' else {})
     return mt
