@@ -21,7 +21,8 @@ After calculating the phenotype by multiplying genotypes by betas and then addin
 ###### `simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None, annot_regex=None, h2_normalize=True,  is_popstrat=False, cov_coef_dict=None, cov_regex=None, path_to_save=None)`
 Simulates phenotypes under various models.
 <br>
-Parameters: 
+
+*Parameters*: 
 * **`mt`** :  Hail MatrixTable holding all the matrix fields passed as parameters to the model
 * **`genotype`** : `mt` entry field of genotypes. Accepted data types: `expr_int32`,`expr_int64`,`expr_float32`,`expr_float64`
 * **`h2`** (optional): Desired heritability of simulated trait. Accepted data types: `float`, `int`
