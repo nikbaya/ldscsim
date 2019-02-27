@@ -369,7 +369,7 @@ def add_popstrat(mt, y, cov_coef_dict=None, cov_regex=None):
     mt = mt.annotate_cols(__y = y)
     mt = mt.annotate_globals(__cov_coef_dict=none_to_null(cov_coef_dict),
                              __cov_regex=none_to_null(cov_regex))
-    mt1 = agg_fields(mt, coef_dict_=cov_coef_dict, regex=cov_regex, axis='cols')
+    mt1 = agg_fields(mt, coef_dict=cov_coef_dict, regex=cov_regex, axis='cols')
     return mt1.annotate_cols(__y_w_popstrat = mt1.__y+mt1.__agg_cov)
 
 @typecheck(mt = MatrixTable, 
