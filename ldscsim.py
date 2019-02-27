@@ -415,5 +415,5 @@ def add_sim_description(mt,starttime,stoptime,runtime,h2=None,pi=1,is_annot_inf=
                          annot_regex=none_to_null(annot_regex),h2_normalize=h2_normalize, 
                          is_popstrat=is_popstrat,cov_coef_dict=cov_coef_dict,
                          cov_regex=cov_regex,path_to_save=none_to_null(path_to_save))
-    mt = mt._annotate_all(global_exprs={'sim_desc{}'.format(sim_id):sim_desc})
+    mt = mt._annotate_all(global_exprs={f'sim_desc{sim_id}':sim_desc})
     return mt
