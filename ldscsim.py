@@ -117,6 +117,7 @@ def check_beta_args(h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None,
            cov_coef_dict=nullable(dict),
            cov_regex=nullable(str))
 def check_popstrat_args(is_popstrat=True, cov_coef_dict=None, cov_regex=None):
+    '''checks popstrat args for simulate() and add_popstrat()'''
     if is_popstrat:
         assert cov_coef_dict != None or cov_regex != None, 'If adding population stratification, cov_coef_dict and cov_regex cannot both be None'
     else:
@@ -318,7 +319,8 @@ def add_regex_pattern(mt, field_list, regex_pattern, prefix=True, axis='rows'):
                           expr_int64, 
                           expr_float32, 
                           expr_float64),
-           h2=oneof(float,int),
+           h2=oneof(nullable(float),
+                    nullable(int)),
            beta=expr_float64,
            is_popstrat=bool,
            cov_coef_dict=nullable(dict),
@@ -335,7 +337,13 @@ def sim_phenotypes(mt, genotype, h2, beta, is_popstrat=False, cov_coef_dict=None
     mt2 = normalize_genotypes(mt1.__gt)
     print('\rCalculating phenotypes{}...'.format(' w/ population stratification' if is_popstrat else '').ljust(81))
     mt3 = mt2.annotate_cols(__y_no_noise = hl.agg.sum(mt2.__beta * mt2.__norm_gt))
-    mt4 = mt3.annotate_cols(__y = mt3.__y_no_noise + hl.rand_norm(0,hl.sqrt(1-h2)))
+    if h2 is None:
+        h2 = mt3.aggregate_cols(hl.agg.stats(mt3.__y_no_noise)).stdev**2
+        if h2 > 1:
+            print(f'WARNING: Total SNP-based h2 = {h2} (>1)')
+            print('Not adding environmental noise')
+            h2=1
+    mt4 = mt3.annotate_cols(__y = mt3.__y_no_noise + hl.rand_norm(0,hl.sqrt(1-h2)))            
     if is_popstrat:
         return add_popstrat(mt4, 
                              y=mt4.__y, 
