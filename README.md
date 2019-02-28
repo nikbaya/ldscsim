@@ -3,14 +3,231 @@
 <br>
 
 ## Getting started
-`simulate()` is the method which wraps all other methods in the package. However, all methods are self-contained. For instance, if you just want to calculate simulated phenotypes using betas (SNP effects) generated outside of the `ldscsim` framework, you can use `sim_phenotypes()` independent of `simulate()`.
-<br>
+`simulate()` is the method which wraps other methods in the package. However, all methods are self-contained. For instance, if you just want to calculate simulated phenotypes using betas (SNP effects) generated outside of the `ldscsim` framework, you can use `sim_phenotypes()` independent of `simulate()`.
 
-## Model options
+Assume for all examples that we have the following MatrixTable `mt`:
+
+```python
+>>> mt.describe()
+```
+
+```
+––––––––––––––––––––––––––––––––––––––––
+Global fields:
+    None
+––––––––––––––––––––––––––––––––––––––––
+Column fields:
+    's': str 
+    'PC1': float64 
+    'PC2': float64 
+    'PC3': float64 
+––––––––––––––––––––––––––––––––––––––––
+Row fields:
+    'rsid': str 
+    'a1': bool 
+    'a2': bool 
+    'a3': bool 
+––––––––––––––––––––––––––––––––––––––––
+Entry fields:
+    'gt': int32 
+––––––––––––––––––––––––––––––––––––––––
+Column key: ['s']
+Row key: ['rsid']
+––––––––––––––––––––––––––––––––––––––––
+```
+
+* `mt.s` : Sample IDs
+* `mt.PC1`,`mt.PC2`,`mt.PC3` : Covariates we want to use for population stratification
+* `mt.rsid` : SNP IDs
+* `mt.a1`,`mt.a2`,`mt.a3` : Annotations we want to use for an annotation-informed model
+* `mt.gt` : Genotypes of individuals
+
+### Infinitesimal Model
+Simulate a phenotype under the infinitesimal model with heritability = 0.1
+
+```python
+>>> sim_mt = simulate(mt=mt,genotype=mt.gt,h2=0.1)
+```
+
+```
+****************************************
+Running simulation framework
+h2 = 0.1
+pi = 1 (default: 1)
+Annotation-informed betas?: NO
+h2-normalized betas?: YES
+Add population stratification?: NO
+****************************************
+Simulating betas using infinitesimal model w/ h2 = 0.1
+Normalizing genotypes...                                                        
+Calculating phenotypes...                                                       
+Finished simulation! (runtime=0.1041 min)
+```
+
+### Spike & Slab Model
+Simulate a phenotype with heritability = 0.1 and probability of a SNP being causal = 0.01
+
+```python
+>>> sim_mt = simulate(mt=mt,genotype=mt.gt,h2=0.1,pi=0.01)
+```
+
+```
+****************************************
+Running simulation framework
+h2 = 0.1
+pi = 0.01 (default: 1)
+Annotation-informed betas?: NO
+h2-normalized betas?: YES
+Add population stratification?: NO
+****************************************
+Simulating betas using spike & slab model w/ h2 = 0.1
+Normalizing genotypes...                                                        
+Calculating phenotypes...                                                       
+Finished simulation! (runtime=0.1118 min)  
+```
+
+### Annotation-Informed Model
+Simulate a phenotype with heritability = 0.1 using row fields that have names that match the regex expression `'a[0-9]'` as our annotations, without scaling the annotations:
+
+```python
+>>> sim_mt = simulate(mt=mt,genotype=mt.gt,h2=0.1,is_annot_inf=True,annot_regex='a[0-9]')
+```
+
+```
+****************************************
+Running simulation framework
+h2 = 0.1
+pi = 1 (default: 1)
+Annotation-informed betas?: YES
+h2-normalized betas?: YES
+Add population stratification?: NO
+****************************************
+Simulating h2-normalized annotation-informed betas (default coef: 1)
+Assuming coef = 1 for all annotations
+Fields and associated coefficients used in annot aggregation: {'a1': 1, 'a2': 1, 'a3': 1}
+Normalizing genotypes...                                                        
+Calculating phenotypes...                                                       
+Finished simulation! (runtime=0.4891 min)
+```
+
+Simulate a phenotype with heritability = 0.1 using row fields that match keys in the `annot_coef_dict` as our annotations, scaling annotations by coefficients in `annot_coef_dict`:
+
+```python
+>>> annot_coef_dict={'a1':0.2,'a2':0.4,'a3':0.1}
+>>> sim_mt = simulate(mt=mt,genotype=mt.gt,h2=0.1,is_annot_inf=True,annot_coef_dict=annot_coef_dict)
+```
+
+```
+****************************************
+Running simulation framework
+h2 = 0.1
+pi = 1 (default: 1)
+Annotation-informed betas?: YES
+h2-normalized betas?: YES
+Add population stratification?: NO
+****************************************
+Simulating h2-normalized annotation-informed betas using annot_coef_dict
+Fields and associated coefficients used in annot aggregation: {'a1': 0.2, 'a2': 0.4, 'a3': 0.1}
+Normalizing genotypes...                                                        
+Calculating phenotypes...                                                       
+Finished simulation! (runtime=0.5021 min)
+```
+
+Simulate a phenotype with heritability = 0.1 using row fields that match keys in the `annot_coef_dict` as our annotations, scaling annotations by coefficients in `annot_coef_dict` , without scaling the variance of the betas to match a desired heritability:
+
+```python
+>>> annot_coef_dict={'a1':0.0001,'a2':0.0004,'a3':0.0002}
+>>> sim_mt = simulate(mt=mt,genotype=mt.gt,is_annot_inf=True,annot_coef_dict=annot_coef_dict,h2_normalize=False)
+```
+
+```
+****************************************
+Running simulation framework
+pi = 1 (default: 1)
+Annotation-informed betas?: YES
+h2-normalized betas?: NO
+Add population stratification?: NO
+****************************************
+Simulating  annotation-informed betas using annot_coef_dict
+Fields and associated coefficients used in annot aggregation: {'a1': 0.0001, 'a2': 0.0004, 'a3': 0.0002}
+Normalizing genotypes...                                                        
+Calculating phenotypes...                                                       
+Finished simulation! (runtime=1.444 min)     
+```
+
+It is possible to have SNP-based h2 > 1 if the coefficients in `annot_coef_dict` are too large. In this case, no environmental noise is added:
+
+```
+****************************************
+Running simulation framework
+pi = 1 (default: 1)
+Annotation-informed betas?: YES
+h2-normalized betas?: NO
+Add population stratification?: NO
+****************************************
+Simulating  annotation-informed betas using annot_coef_dict
+Fields and associated coefficients used in annot aggregation: {'a1': 0.001, 'a2': 0.004, 'a3': 0.0002}
+Normalizing genotypes...                                                        
+Calculating phenotypes...                                                       
+WARNING: Total SNP-based h2 = 2.696333128695569 (>1)
+Not adding environmental noise
+Finished simulation! (runtime=1.4135 min)      
+```
+
+### Population Stratification
+Simulate a phenotype with heritability = 0.1 (under the infinitesimal model) using covariates that match the regex expression `PC[0-9]` as our covariates for the population stratification, without scaling the covariates.
+
+```python
+>>> sim_mt = simulate(mt=mt,genotype=mt.gt,h2=0.1,is_popstrat=True,cov_regex='PC[0-9]')
+```
+
+```
+****************************************
+Running simulation framework
+h2 = 0.1
+pi = 1 (default: 1)
+Annotation-informed betas?: NO
+h2-normalized betas?: YES
+Add population stratification?: YES
+****************************************
+Simulating betas using infinitesimal model w/ h2 = 0.1
+Normalizing genotypes...                                                        
+Calculating phenotypes w/ population stratification...                          
+Adding population stratification...                                             
+Assuming coef = 1 for all covariates
+Fields and associated coefficients used in cov aggregation: {'PC1': 1, 'PC2': 1, 'PC3': 1}
+Finished simulation! (runtime=0.1212 min) 
+```
+
+Simulate a phenotype with heritability = 0.1 using covariates that match keys in `cov_coef_dict` as our covariates for the population stratification, scaling covariates by coefficients in `cov_coef_dict`.
+
+```python
+>>> cov_coef_dict={'b1':0.4,'b2':0.1,'b3':0.7}
+>>> simulate(mt,mt.gt,h2=0.1,is_popstrat=True,cov_coef_dict=cov_coef_dict)
+```
+
+```
+****************************************
+Running simulation framework
+h2 = 0.1
+pi = 1 (default: 1)
+Annotation-informed betas?: NO
+h2-normalized betas?: YES
+Add population stratification?: YES
+****************************************
+Simulating betas using infinitesimal model w/ h2 = 0.1
+Normalizing genotypes...                                                        
+Calculating phenotypes w/ population stratification...                          
+Adding population stratification...                                             
+Fields and associated coefficients used in cov aggregation: {'b1': 0.4, 'b2': 0.1, 'b3': 0.7}
+Finished simulation! (runtime=0.136 min)
+```
+
+## Model descriptions
 #### Models for SNP effects or "betas"
-* **Infinitesimal Model**: All SNP effects are drawn from a normal distribution with mean=0, variance=`h2/M`, where `h2` is the desired heritability of the simulated trait and `M` is the number of SNPs in the genotype matrix given given by the user.
-* **Spike & Slab Model**: SNPs have probability `pi` of being causal. If causal, the SNP effect is drawn from a normal distribution with variance `h2/(M*pi)`. If not causal, the SNP effect is zero.
-* **Annotation-Informed Betas**: The effect for SNP `j` are drawn from a normal distribution with mean=0, variance=`a[j]*h2`, where `a[j]` is the relative heritability contributed by SNP `j` and `a` is a vector of the relative heritability contributed by each SNP. The sum of `a` is 1.
+* **Infinitesimal**: All SNP effects are drawn from a normal distribution with mean=0, variance=`h2/M`, where `h2` is the desired heritability of the simulated trait and `M` is the number of SNPs in the genotype matrix given given by the user.
+* **Spike & Slab**: SNPs have probability `pi` of being causal. If causal, the SNP effect is drawn from a normal distribution with variance `h2/(M*pi)`. If not causal, the SNP effect is zero.
+* **Annotation-Informed**: The effect for SNP `j` are drawn from a normal distribution with mean=0, variance=`a[j]*h2`, where `a[j]` is the relative heritability contributed by SNP `j` and `a` is a vector of the relative heritability contributed by each SNP. The sum of `a` is 1.
 
 #### Models for population stratification
 After calculating the phenotype by multiplying genotypes by betas and then adding environmental noise, a term is added with population stratification. This term is `popstrat_s2*popstrat`. `popstrat` is a column field containing the desired population stratification, normalized in the code to have mean=0, variance=1. `popstrat_s2` is the desired relative amount of variance contributed by the population stratification. The simulated phenotype has variance=1 before adding population stratification so if `popstrat_s2`=2 then population stratification will have variance twice that of the phenotype before adding population stratification.
