@@ -2,6 +2,16 @@
 `ldscsim` is a module to simulate phenotypes. It was originally designed to generate phenotypes for testing [`ldsc`](https://github.com/bulik/ldsc), but is extensible to general use.
 <br>
 
+## Model descriptions
+#### Models for SNP effects or "betas"
+* **Infinitesimal**: All SNP effects are drawn from a normal distribution with mean=0, variance=`h2/M`, where `h2` is the desired heritability of the simulated trait and `M` is the number of SNPs in the genotype matrix given given by the user.
+* **Spike & Slab**: SNPs have probability `pi` of being causal. If causal, the SNP effect is drawn from a normal distribution with variance `h2/(M*pi)`. If not causal, the SNP effect is zero.
+* **Annotation-Informed**: The effect for SNP `j` are drawn from a normal distribution with mean=0, variance=`a[j]*h2`, where `a[j]` is the relative heritability contributed by SNP `j` and `a` is a vector of the relative heritability contributed by each SNP. `a[j]` is calculated by taking the linear combination across all annotations of SNP `j`, scaling each annotation by coefficients specified by the user, or assumed to be 1.
+
+#### Modeling population stratification
+After calculating the matrix product of genotypes and SNP effects, it is possible to add population stratification. Population stratification is a term added to the phenotype, which is the linear combination of covariates scaled by given coefficients.
+<br>
+
 ## Getting started
 `simulate()` is the method which wraps other methods in the package. However, all methods are self-contained. For instance, if you just want to calculate simulated phenotypes using betas (SNP effects) generated outside of the `ldscsim` framework, you can use `sim_phenotypes()` independent of `simulate()`.
 
@@ -222,17 +232,6 @@ Adding population stratification...
 Fields and associated coefficients used in cov aggregation: {'b1': 0.4, 'b2': 0.1, 'b3': 0.7}
 Finished simulation! (runtime=0.136 min)
 ```
-
-## Model descriptions
-#### Models for SNP effects or "betas"
-* **Infinitesimal**: All SNP effects are drawn from a normal distribution with mean=0, variance=`h2/M`, where `h2` is the desired heritability of the simulated trait and `M` is the number of SNPs in the genotype matrix given given by the user.
-* **Spike & Slab**: SNPs have probability `pi` of being causal. If causal, the SNP effect is drawn from a normal distribution with variance `h2/(M*pi)`. If not causal, the SNP effect is zero.
-* **Annotation-Informed**: The effect for SNP `j` are drawn from a normal distribution with mean=0, variance=`a[j]*h2`, where `a[j]` is the relative heritability contributed by SNP `j` and `a` is a vector of the relative heritability contributed by each SNP. The sum of `a` is 1.
-
-#### Models for population stratification
-After calculating the phenotype by multiplying genotypes by betas and then adding environmental noise, a term is added with population stratification. This term is `popstrat_s2*popstrat`. `popstrat` is a column field containing the desired population stratification, normalized in the code to have mean=0, variance=1. `popstrat_s2` is the desired relative amount of variance contributed by the population stratification. The simulated phenotype has variance=1 before adding population stratification so if `popstrat_s2`=2 then population stratification will have variance twice that of the phenotype before adding population stratification.
-<br>
-
 
 ## Methods
 ###### `simulate(mt, genotype, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None, annot_regex=None, h2_normalize=True,  is_popstrat=False, cov_coef_dict=None, cov_regex=None, path_to_save=None)`
