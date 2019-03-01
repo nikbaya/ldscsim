@@ -1,3 +1,24 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Feb 12 11:27:04 2019
+
+Generate correlated betas
+
+@author: nbaya
+"""
+
+import hail as hl
+import numpy as np
+import scipy.stats as stats
+import pandas as pd
+
+
+"""
+*******************************
+n correlated phenotype solution
+*******************************
+"""
 def sim_correlated_phens(mt, genotype, h2_ls=[], rg_ls=[], cov_array = None, seed = None):
     if type(h2_ls) is not list or type(rg_ls) is not list:
         raise ValueError("Both h2_ls and rg_ls must be lists")
@@ -48,19 +69,19 @@ def create_correlated_betas(mt, cov_array, seed):
     randstate = np.random.RandomState(int(seed)) #seed random state for replicability
     if n_phens > 1:
         betas = randstate.multivariate_normal(mean=np.zeros(n_phens),cov=cov_array,size=[M,])
-    df = pd.DataFrame(betas,columns=[f'beta_{i}' for i in range(n_phens)])
+    df = pd.DataFrame(betas,columns=[f'__beta_{i}' for i in range(n_phens)])
     tb = hl.Table.from_pandas(df)
     tb = tb.add_index().key_by('idx')
     mt = mt.add_row_index()
     for i in range(n_phens):
-        mt = mt._annotate_all(row_exprs = {f'beta_{i}': tb[mt.row_idx][f'beta_{i}']}) 
+        mt = mt._annotate_all(row_exprs = {f'__beta_{i}': tb[mt.row_idx][f'__beta_{i}']}) 
     return mt
 
 def sim_phenotypes(mt, cov_array):
     h2_ls = np.diag(cov_array)
     n_phens = len(h2_ls)
     for i in range(n_phens):
-        mt = mt._annotate_all(col_exprs={f'__y_no_noise_{i}': hl.agg.sum(mt[f'beta_{i}'] * mt.__norm_gt)})
+        mt = mt._annotate_all(col_exprs={f'__y_no_noise_{i}': hl.agg.sum(mt[f'__beta_{i}'] * mt.__norm_gt)})
     for i in range(n_phens):
         mt = mt._annotate_all(col_exprs={f'__y_{i}':mt[f'__y_no_noise_{i}']+hl.rand_norm(0,hl.sqrt(1-h2_ls[i]))})
     return mt
