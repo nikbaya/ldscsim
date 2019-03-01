@@ -42,7 +42,7 @@ def sim_correlated_phens(mt, genotype, h2_ls=[], rg_ls=[], cov_array = None, see
     mt = mt.annotate_globals(__seed = seed)
     mt = normalize_genotypes(mt)
     mt = create_correlated_betas(mt, cov_array, seed)
-    return sim_phenotypes(mt, cov_array)
+    return sim_corr_phenotypes(mt, cov_array)
 
 def create_cov_array(h2_ls, rg_ls):
     n_rg = len(rg_ls)
@@ -77,7 +77,7 @@ def create_correlated_betas(mt, cov_array, seed):
         mt = mt._annotate_all(row_exprs = {f'__beta_{i}': tb[mt.row_idx][f'__beta_{i}']}) 
     return mt
 
-def sim_phenotypes(mt, cov_array):
+def sim_corr_phenotypes(mt, cov_array):
     h2_ls = np.diag(cov_array)
     n_phens = len(h2_ls)
     for i in range(n_phens):
