@@ -43,7 +43,7 @@ def simulate_phenotypes(mt, genotype, h2=None, pi=1, is_annot_inf=False, annot_c
     Parameters
     ----------
     mt : :class:`.MatrixTable`
-        MatrixTable containing genotype to be used. Also should contain 
+        MatrixTable containing genotypes to be used. Also should contain 
         variant annotations as row fields if running the annotation-informed
         model or covariates as column fields if adding population stratification.
     genotype : :class:`.Expression`
