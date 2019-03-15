@@ -34,10 +34,56 @@ from datetime import datetime, timedelta
 def simulate_phenotypes(mt, genotype, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None,
                         annot_regex=None,h2_normalize=True, is_popstrat=False, cov_coef_dict=None,
                         cov_regex=None, path_to_save=None):
-    ''' Simulates phenotypes. 
-        Options: 
-            models for betas: Infinitesimal, spike/slab, annotation-informed
-            models for phenotypes: population stratification'''
+    r'''Simulate phenotypes for testing LD score regression.
+    
+    Simulates betas (SNP effects) under the infinitesimal, spike & slab, or 
+    annotation-informed models, depending on parameters passed. Optionally adds
+    population stratification.
+    
+    Parameters
+    ----------
+    mt : :class:`.MatrixTable`
+        MatrixTable containing genotype to be used. Also should contain 
+        variant annotations as row fields if running the annotation-informed
+        model or covariates as column fields if adding population stratification.
+    genotype : :class:`.Expression`
+        Entry field containing genotypes of individuals to be used for the
+        simulation.
+    h2 : :obj:`float` or :obj:`int`
+        Heritability of simulted trait. Can only be None if running annotation-
+        informed model.
+    pi : :obj:`float` or :obj:`int`
+        Probability of SNP being causal when simulating under the spike & slab 
+        model.
+    is_annot_inf : :obj:`bool`
+        Whether to simulate under the annotation-informed model. 
+        Requires annot_coef_dict and annot_regex to not both be None.
+    annot_coef_dict : :obj:`dict` from :obj:`str` to :obj:`float`
+        Dictionary with annotation row field names as keys and coefficients for
+        each annotation as values. Coefficients are equivalent to tau values in 
+        partitioned heritability.
+    annot_regex : :obj:`str`
+        Regex to search for annotations to use in an annotation-informed model.
+    h2_normalize : :obj:`bool`
+        Whether to normalize h2 when running an annotation-informed model.
+        Requires is_annot_inf=True and h2!=None.
+    is_popstrat : :obj:`bool`
+        Whether to simulate with population stratification. 
+        Requires cov_coef_dict and cov_regex to not both be None.
+    cov_coef_dict : :obj:`dict` from :obj:`str` to :obj:`float`
+        Dictionary with covariate column field names as keys and coefficients 
+        for each covariate as values.
+    cov_regex : :obj:`str`
+        Regex to search for covariates to add population stratification.
+    path_to_save : :obj:`str`
+        Path to save MatrixTable of simulation results.
+    
+    Returns
+    -------
+    :class:`.MatrixTable`
+        MatrixTable with simulated betas and phenotypes, simulated according
+        to user-specified model.
+        '''
     check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,annot_coef_dict=annot_coef_dict,
                         annot_regex=annot_regex,h2_normalize=h2_normalize)
     check_popstrat_args(is_popstrat=is_popstrat,cov_coef_dict=cov_coef_dict,cov_regex=cov_regex)
