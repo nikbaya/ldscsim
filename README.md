@@ -97,10 +97,10 @@ Finished simulation! (runtime=0.1118 min)
 ```
 
 ### Annotation-Informed Model
-Simulate a phenotype with heritability = 0.1 using row fields that have names that match the regex expression `'a[0-9]'` as our annotations, without scaling the annotations:
+Simulate a phenotype with heritability = 0.1 using row fields that have names that match the regex `'a[0-9]'` as our annotations, without scaling the annotations:
 
 ```python
->>> sim_mt = simulate(mt=mt,genotype=mt.gt,h2=0.1,is_annot_inf=True,annot_regex='a[0-9]')
+>>> sim_mt = simulate(mt=mt,genotype=mt.gt,h2=0.1,is_annot_inf=True,annot_='a[0-9]')
 ```
 
 ```
@@ -185,7 +185,7 @@ Finished simulation! (runtime=1.4135 min)
 ```
 
 ### Population Stratification
-Simulate a phenotype with heritability = 0.1 (under the infinitesimal model) using covariates that match the regex expression `PC[0-9]` as our covariates for the population stratification, without scaling the covariates.
+Simulate a phenotype with heritability = 0.1 (under the infinitesimal model) using covariates that match the regex `PC[0-9]` as our covariates for the population stratification, without scaling the covariates.
 
 ```python
 >>> sim_mt = simulate(mt=mt,genotype=mt.gt,h2=0.1,is_popstrat=True,cov_regex='PC[0-9]')
