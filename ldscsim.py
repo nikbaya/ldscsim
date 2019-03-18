@@ -281,17 +281,21 @@ def agg_fields(mt,coef_dict=None,regex=None,axis='rows'):
     assert (regex != None or coef_dict != None), "regex and coef_dict cannot both be None"
     assert axis is 'rows' or axis is 'cols', "axis must be 'rows' or 'cols'"
     coef_dict = get_coef_dict(mt=mt,regex=regex, coef_ref_dict=coef_dict,axis=axis)
+    if axis == 'rows':
+        mt = mt.annotate_rows(__agg_annot = 0)
+        mt = mt.annotate_globals(__annot_coef_dict = none_to_null(coef_dict),
+                                 __annot_regex = none_to_null(regex))
+    elif axis == 'cols':
+        mt = mt.annotate_cols(__agg_cov = 0)
+        mt = mt.annotate_globals(__cov_coef_dict = none_to_null(coef_dict),
+                                 __cov_regex = none_to_null(regex))
     axis_field = 'annot' if axis=='rows' else 'cov'
-    expr = {f'__agg_{axis_field}':0}
-    mt = mt._annotate_all(row_exprs=expr if axis == 'rows' else {},
-                          col_exprs=expr if axis == 'cols' else {},
-                          global_exprs={f'__{axis_field}_coef_dict':none_to_null(coef_dict),
-                                          f'__{axis_field}_regex':none_to_null(regex)})
     print(f'Fields and associated coefficients used in {axis_field} aggregation: {coef_dict}')
     for field,coef in coef_dict.items():
-        expr = {f'__agg_{axis_field}':mt[f'__agg_{axis_field}']+coef*mt[field]}
-        mt = mt._annotate_all(row_exprs=expr if axis == 'rows' else {},
-                              col_exprs=expr if axis == 'cols' else {})
+        if axis == 'rows':
+            mt = mt.annotate_rows(__agg_annot = mt.__agg_annot+coef*mt[field])
+        elif axis == 'cols':
+            mt = mt.annotate_cols(__agg_cov = mt.__agg_cov+coef*mt[field])
     return mt
 
 @typecheck(mt=MatrixTable,
@@ -370,9 +374,10 @@ def add_regex_pattern(mt, field_list, regex_pattern, prefix=True, axis='rows'):
            beta=expr_float64,
            is_popstrat=bool,
            cov_coef_dict=nullable(dict),
-           cov_regex=nullable(str))
+           cov_regex=nullable(str),
+           normalize_gt=bool)
 def calculate_phenotypes(mt, genotype, h2, beta, is_popstrat=False, cov_coef_dict=None,
-                         cov_regex=None, gt_normalize=True):
+                         cov_regex=None, normalize_gt=True):
     '''Simulate phenotypes given betas and genotypes. Adding population stratification is optional'''
     check_mt_sources(mt,genotype,beta)
     check_popstrat_args(is_popstrat=is_popstrat,cov_coef_dict=cov_coef_dict,cov_regex=cov_regex)
@@ -381,7 +386,7 @@ def calculate_phenotypes(mt, genotype, h2, beta, is_popstrat=False, cov_coef_dic
                            global_exprs={'__is_popstrat':is_popstrat,
                                          '__cov_coef_dict':none_to_null(cov_coef_dict),
                                          '__cov_regex':none_to_null(cov_regex)})
-    if gt_normalize:
+    if normalize_gt:
         mt2 = normalize_genotypes(mt1.__gt)
     else:
         mt2 = mt1.annotate_entries(__norm_gt = mt1.__gt)
