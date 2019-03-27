@@ -14,6 +14,10 @@ from hail.typecheck import typecheck, oneof, nullable
 from hail.matrixtable import MatrixTable
 import re
 from datetime import datetime, timedelta
+from hail.utils.java import Env
+import numpy as np
+import pandas as pd
+import os
 
 @typecheck(mt=MatrixTable, 
            genotype=oneof(expr_int32,
@@ -253,8 +257,9 @@ def none_to_null(arg):
            annot_coef_dict=nullable(dict),
            annot_regex=nullable(str),
            h2_normalize=bool)
-def make_betas(mt, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None, annot_regex=None, h2_normalize=True):
+def make_betas(mt, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None, annot_regex=None, h2_normalize=True, seed=None):
     '''Simulate betas. Options: Infinitesimal model, spike & slab, annotation-informed'''  
+    seed = seed if seed is not None else int.from_bytes(os.urandom(4), byteorder="big") 
     check_beta_args(h2=h2,pi=pi,is_annot_inf=is_annot_inf,annot_coef_dict=annot_coef_dict,
                     annot_regex=annot_regex,h2_normalize=h2_normalize)
     M = mt.count_rows()
@@ -268,7 +273,58 @@ def make_betas(mt, h2=None, pi=1, is_annot_inf=False, annot_coef_dict=None, anno
     else:
         print('Simulating betas using {} model w/ h2 = {}'.format(('infinitesimal' if pi is 1 else 'spike & slab'),h2))
         mt1 = mt.annotate_globals(__h2 = none_to_null(h2), __pi = pi)
-        return mt1.annotate_rows(__beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2/(M*pi))))
+        return mt1.annotate_rows(__beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2/(M*pi),seed=seed)))
+    
+@typecheck(mt=MatrixTable,
+           h2=nullable(float),
+           rg=nullable(list),
+           cov_array=nullable(oneof(list,
+                                    np.ndarray)),
+           seed=nullable(int))
+def make_corr_betas(mt, h2=None, rg=None, cov_array=None, seed=None):
+    '''Make correlated betas for multi-trait simulations'''
+    seed = seed if seed is not None else int.from_bytes(os.urandom(4), byteorder="big") 
+#    assert ()
+    M = mt.count_rows()
+    if cov_array != None:
+        n_phens = cov_array.shape[0]
+    else:
+        n_phens = len(h2)
+    if rg is None and cov_array is None:
+        print(f'Assuming rg=0 for all {n_phens} traits')
+        rg = [0]*int((n_phens**2-n_phens)/2)
+    if cov_array is None:
+        cov_array = create_cov_array(h2, rg)
+    cov_array = (1/M)*cov_array
+    randstate = np.random.RandomState(int(seed)) #seed random state for replicability
+    betas = randstate.multivariate_normal(mean=np.zeros(n_phens),cov=cov_array,size=[M,])
+    df = pd.DataFrame([0]*M,columns=['__beta'])
+    tb = hl.Table.from_pandas(df)
+    tb = tb.add_index().key_by('idx')
+    tb = tb.annotate(__beta = hl.literal(betas.tolist())[hl.int32(tb.idx)])
+    mt = mt.add_row_index()
+    mt = mt.annotate_rows(__beta = tb[mt.row_idx]['__beta'])
+    return mt, betas
+
+
+@typecheck(h2_ls=oneof(list,
+                       np.ndarray),
+           rg_ls=oneof(list,
+                       np.ndarray))
+def create_cov_array(h2_ls, rg_ls):
+    n_rg = len(rg_ls)
+    n_h2 = len(h2_ls)
+    exp_n_rg = int((n_h2**2-n_h2)/2)
+    if n_rg is not exp_n_rg:
+        raise ValueError(f'The number of rg values given is {n_rg}, expected {exp_n_rg}')
+    rg_ls = np.asarray(rg_ls)
+    cov_array = np.zeros(shape=[n_h2,n_h2])
+    cov_array[np.triu_indices(n_h2, k=1)] = rg_ls**2 #sets upper diagonal with covariances
+    h2_diag = np.diag(h2_ls)
+    cov_array = (np.matmul(np.matmul(cov_array,h2_diag).T,h2_diag)**(1/2))
+    cov_array += cov_array.T + h2_diag
+    return cov_array
+
 
 @typecheck(mt=MatrixTable,
            coef_dict=nullable(dict),
