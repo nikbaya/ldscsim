@@ -130,4 +130,3 @@ def clean_fields(mt, str_expr):
     all_fields = list(mt.col)+list(mt.row)+list(mt.entry)+list(mt.globals)
     return mt.drop(*(x for x in all_fields if str_expr in x))
 
-def annotate_all()
