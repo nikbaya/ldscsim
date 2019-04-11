@@ -261,22 +261,52 @@ print(miss_ct/(16*10*10))
 def multitrait_spikeslab(h2,pi,target_rg,M = int(1e5)):
     d = 1/M
 #    print(f'attempting target_rg={target_rg} with error {d}, pi={pi}')
+    pi1 = pi[0]
+    pi2 = pi[1]
     rmax = max(pi1/pi2,pi2/pi1)**(-1/2) #rmax assuming rg between causal SNPs is 1
     if  rmax < target_rg:
-        print(f'chosen pi={pi} cannot guarantee rg = {target_rg} within {d}')
+        print(f'chosen pi={pi} cannot achieve rg = {target_rg}')
+    elif target_rg==0: #independent spike & slab
+        cov_matrix = create_cov_matrix(h2=h2,rg=[target_rg])
+        cov_matrix *= 1/M
+        beta0 = np.random.multivariate_normal(mean=np.zeros(cov_matrix.shape[0]),cov=cov_matrix,size=[M,])
+        beta0 = beta0*([x**(-1) for x in pi])
+        for i,p in enumerate(pi):
+            beta0[0:int(M*(1-p)),i] = 0
+        np.random.shuffle(beta0)
+        return beta0
+    elif target_rg==1: #perfect correlation
+        cov_matrix = create_cov_matrix(h2=h2,rg=[target_rg])
+        cov_matrix *= 1/M
+        beta0 = np.random.multivariate_normal(mean=np.zeros(cov_matrix.shape[0]),cov=cov_matrix,size=[M,])
+        beta0 = beta0*([x**(-1) for x in pi])
+        beta0[0:int(M*(1-pi1)),0] = 0
+        beta0[0:int(M*(1-pi2)),1] = 0
+        return beta0
+    elif max(pi)==1 and len(set(pi))==1: #multitrait infinitesimal
+        cov_matrix = create_cov_matrix(h2=h2,rg=[target_rg])
+        cov_matrix *= 1/M
+        beta0 = np.random.multivariate_normal(mean=np.zeros(cov_matrix.shape[0]),cov=cov_matrix,size=[M,])
+        return beta0
     else:
 #        start_rg_ls = []
-        start_rg = 1
-        start_rg_prev = start_rg
-        while rmax > target_rg+0.1:
-#            start_rg_ls.append(start_rg)
+        mix=False
+        if max(pi)==1:
+            mix = True
+            start_rg_prev = target_rg+(1-target_rg)*0.1
+        else:
+            start_rg = 1
             start_rg_prev = start_rg
-            start_rg = target_rg+(start_rg-target_rg)*0.99 #approach target rg exponentially
-            rmax = (start_rg)*max(pi1/pi2,pi2/pi1)**(-1/2)
+            while rmax > target_rg+0.1:
+    #            start_rg_ls.append(start_rg)
+                start_rg_prev = start_rg
+                start_rg = target_rg+(start_rg-target_rg)*0.99 #approach target rg exponentially
+                rmax = (start_rg)*max(pi1/pi2,pi2/pi1)**(-1/2)
 #        plt.plot(range(len(start_rg_ls)),start_rg_ls,'.')
 #        plt.plot(range(len(start_rg_ls)),[target_rg]*len(start_rg_ls),'k--',alpha=0.5)
         success=False
         iteration=1
+        flip = False
         while success is False and iteration <= 3:
             cov_matrix = create_cov_matrix(h2=h2,rg=[start_rg_prev])
             n_phens =2
@@ -285,15 +315,18 @@ def multitrait_spikeslab(h2,pi,target_rg,M = int(1e5)):
             beta0[:,0] = (1/pi1)*beta0[:,0]
             beta0[:,1] = (1/pi2)*beta0[:,1]
             beta = beta0.copy()
-            i=0
             if pi2>pi1:
-                i=int(M*(pi2-pi1))
+                flip = (flip==False)
+                pi1, pi2 = pi2, pi1
+                beta = beta[:,::-1]
+            i=0 #int(M*(pi2-pi1))
             beta[0:int(M*(1-pi1)),0] = 0
             beta[i:int(M*(1-pi2))+i,1] = 0
             r = stats.pearsonr(beta[:,0],beta[:,1])[0]
-#            print(r)
             i += 1
-            while abs(r-target_rg)>d and r > target_rg and i < M and r > 0:
+            if mix:
+                print(f'{i}: {r}')
+            while r-target_rg > d and i < M:
                 beta = beta0.copy()
                 beta[0:int(M*(1-pi1)),0] = 0
                 if int(M*(1-pi2))+i>M: #if the window of zeros reaches the end of the array, wrap around
@@ -302,15 +335,17 @@ def multitrait_spikeslab(h2,pi,target_rg,M = int(1e5)):
                 else:
                     beta[i:int(M*(1-pi2))+i,1] = 0
                 r = stats.pearsonr(beta[:,0],beta[:,1])[0]
+                if i%1000 ==0:
+                    print(r)
                 i += 1
             if i>=M:#*(1-pi1) and r-rg>0.01:
                 print(f'iteration {iteration} failed, retrying with updated initial conditions')
-                print(f'start_rg_prev: {start_rg_prev},pi={pi},rg={target_rg}')
+                print(f'start_rg_prev: {start_rg_prev},pi={[pi1, pi2]},rg={target_rg}')
                 iteration += 1
                 if r < target_rg:
                     start_rg_prev = start_rg_prev+(1-start_rg_prev)*0.9
                 else:
-                    start_rg_prev = 0.1*start_rg_prev
+                    start_rg_prev = start_rg_prev*0.1
             else:
                 success=True
                 if iteration > 1:
@@ -318,18 +353,25 @@ def multitrait_spikeslab(h2,pi,target_rg,M = int(1e5)):
                 return beta
         if iteration == 3:
             print('failed too many times')
+
 exp_rg=[]
 obs_rg=[]
 fail_ct = 0
-for pi1 in np.logspace(-2,0,5):
-    for pi2 in np.logspace(-2,0,5):
-        for target_rg in np.linspace(0,1,11):
+for pi1 in np.logspace(-2,0,5)[:-1]:
+    for pi2 in [1]: #np.logspace(-2,0,5):
+        for target_rg in np.linspace(0,0.5,6):
             print('\n')
             beta = multitrait_spikeslab(h2=[0.3,0.5],pi=[pi1,pi2],target_rg=round(target_rg,3))
             if beta is not None:
+                print(f'pi={[pi1,pi2]}')
                 print(f'target rg={round(target_rg,3)}, rg={stats.pearsonr(beta[:,0],beta[:,1])[0]}')
                 exp_rg.append(round(target_rg,3))
                 obs_rg.append(stats.pearsonr(beta[:,0],beta[:,1])[0])
             else:
                 fail_ct += 1
 print(f'success rate: {1-fail_ct/(10*10*11)}')
+
+plt.plot(exp_rg,obs_rg,'.')
+plt.plot([min(exp_rg),max(exp_rg)],[min(exp_rg),max(exp_rg)],'k--',alpha=0.5)
+
+beta = multitrait_spikeslab(h2=[0.3,0.5],pi=[0.03162277660168379, 1.0],target_rg=0)
