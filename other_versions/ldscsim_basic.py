@@ -161,10 +161,8 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
            cov_matrix=nullable(np.ndarray),
            seed=nullable(int))
 def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
-    '''Generates correlated betas for multi-trait simulations
-    
-    Simulates betas (SNP effects) for multiple correlated traits under the 
-    infinitesimal model.
+    '''Generates correlated betas for multi-trait infinitesimal simulations for 
+    any number of phenotypes.
     '''
     h2 = [h2] if type(h2) is not list else h2
     rg = [rg] if type(rg) is not list else rg
@@ -193,14 +191,12 @@ def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
 
 @typecheck(mt=MatrixTable, 
            h2=list,
+           pi=list,
            rg=oneof(float,
-                    int),
-           pi=list)
-def multitrait_ss(mt, h2, rg=0, pi):
-    '''Generates correlated betas for multi-trait simulations
-    
-    Simulates betas (SNP effects) for multiple correlated traits under the 
-    spike & slab model.
+                    int))
+def multitrait_ss(mt, h2, pi, rg=0):
+    '''Generates correlated betas for multi-trait spike & slab simulations for 
+    2 phenotypes.
     '''
     ptt, ptf, pft, pff = pi[0], pi[1], pi[2], 1-sum(pi)
     cov_matrix = np.asarray([[1/(ptt+ptf), rg/ptt],[rg/ptt,1/(ptt+pft)]])
