@@ -28,7 +28,8 @@ import string
                              int,
                              list)),
            pi=nullable(oneof(float,
-                             int)),
+                             int,
+                             list)),
            rg=nullable(oneof(float,
                              int,
                              list)),
@@ -100,7 +101,9 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
            h2=nullable(oneof(float,
                              int,
                              list)),
-           pi=oneof(float,int),
+           pi=oneof(float,
+                    int, 
+                    list),
            annot=nullable(oneof(expr_float64,
                                 expr_int32)),
            rg=nullable(oneof(float,
@@ -145,11 +148,11 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
     elif len(h2)>1 and pi==[1]: #multi-trait infinitesimal
         return multitrait_inf(mt=mt,h2=h2,rg=rg)
     elif len(h2)==2 and len(pi)>1: #multi-trait spike & slab
-        return multitrait_ss(mt=mt,h2=h2,rg=rg,pi=pi)
+        return multitrait_ss(mt=mt,h2=h2,rg=rg[0],pi=pi)
     elif len(h2)==1 and pi==[1]: #infinitesimal/spike & slab
         return mt.annotate_rows(beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2[0]/(M*pi[0]))))
     else:
-        print('')
+        raise ValueError('Insufficient parameters')
         
 @typecheck(mt=MatrixTable, 
            h2=nullable(oneof(float,
@@ -242,7 +245,8 @@ def create_cov_matrix(h2, rg):
     return cov_matrix
 
 @typecheck(mt=MatrixTable,
-           genotype=expr_int32,
+           genotype=oneof(expr_int32,
+                          expr_float64),
            beta=oneof(expr_float64,
                       expr_array(expr_float64)),
            h2=nullable(oneof(float,
