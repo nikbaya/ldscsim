@@ -141,15 +141,18 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
     rg = [rg] if type(rg) is not list else rg
     assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
     assert (all(x >= 0 and x <= 1 for x in pi)), 'pi values for spike & slab must be between 0 and 1'
-    M = mt.count_rows()
-    if annot != None: #annotation-informed
-        mt = mt.annotate_rows(**{'beta': hl.rand_norm(0, hl.sqrt(annot))}) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
+    assert (rg==[None] or all(x >= 0 and x <= 1 for x in rg)), 'rg values must be between 0 and 1 or None'
+    if annot is not None: #annotation-informed
+        M = mt.count_rows()
+        annot_sum = mt.aggregate_rows(hl.agg.sum(annot))
+        mt = mt.annotate_rows(**{'beta': hl.rand_norm(0, hl.sqrt(annot*h2[0]/annot_sum))}) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
         return mt
     elif len(h2)>1 and pi==[1]: #multi-trait infinitesimal
         return multitrait_inf(mt=mt,h2=h2,rg=rg)
     elif len(h2)==2 and len(pi)>1: #multi-trait spike & slab
         return multitrait_ss(mt=mt,h2=h2,rg=rg[0],pi=pi)
     elif len(h2)==1 and pi==[1]: #infinitesimal/spike & slab
+        M = mt.count_rows()
         return mt.annotate_rows(beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2[0]/(M*pi[0]))))
     else:
         raise ValueError('Insufficient parameters')
@@ -197,10 +200,14 @@ def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
            pi=list,
            rg=oneof(float,
                     int))
-def multitrait_ss(mt, h2, pi, rg=0):
+def multitrait_ss(mt, h2, pi, rg=0, seed=None):
     '''Generates correlated betas for multi-trait spike & slab simulations for 
     2 phenotypes.
     '''
+    seed = seed if seed is not None else int(str(Env.next_seed())[:8])
+    assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
+    assert (all(x >= 0 and x <= 1 for x in pi)), 'pi values must be between 0 and 1'
+    assert (sum(pi) <= 1), 'sum of pi values cannot be greater than 1'
     ptt, ptf, pft, pff = pi[0], pi[1], pi[2], 1-sum(pi)
     cov_matrix = np.asarray([[1/(ptt+ptf), rg/ptt],[rg/ptt,1/(ptt+pft)]])
     M = mt.count_cols()
