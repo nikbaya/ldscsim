@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 import random
 import string
+import scipy.stats as stats
 
 @typecheck(mt=MatrixTable, 
            genotype=oneof(expr_int32,
@@ -153,7 +154,7 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
         return multitrait_ss(mt=mt,h2=h2,rg=rg[0],pi=pi)
     elif len(h2)==1 and pi==[1]: #infinitesimal/spike & slab
         M = mt.count_rows()
-        return mt.annotate_rows(beta = hl.rand_bool(pi)*hl.rand_norm(0,hl.sqrt(h2[0]/(M*pi[0]))))
+        return mt.annotate_rows(beta = hl.rand_bool(pi[0])*hl.rand_norm(0,hl.sqrt(h2[0]/(M*pi[0]))))
     else:
         raise ValueError('Insufficient parameters')
         
@@ -306,7 +307,14 @@ def annotate_all(mt,row_exprs={},col_exprs={},entry_exprs={},global_exprs={}):
         if type(value) == expr_float64 or type(value) == expr_int32:
             assert value._indices.source == mt, 'Cannot combine expressions from different source objects.'
     return mt._annotate_all(row_exprs, col_exprs, entry_exprs, global_exprs)
-    
+
+def binarize(mt,y,K):
+    '''Binarize phenotype such that it has prevalence K = cases/(cases+controls)
+    Uses inverse CDF.'''
+    stats = mt.aggregate_cols(hl.agg.stats(y))
+    threshold = stats.norm.ppf(1-K,loc=stats.mean,scale=stats.stdev)
+    mt = mt.annotate_cols(binarized_phen = y > threshold)
+    return mt
     
 def check_h2(beta=None, y_no_noise=None, h2_exp=None):
     '''Check the h2 of simulated trait'''
