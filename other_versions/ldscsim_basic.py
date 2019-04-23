@@ -146,7 +146,7 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
     if annot is not None: #annotation-informed
         M = mt.count_rows()
         annot_sum = mt.aggregate_rows(hl.agg.sum(annot))
-        mt = mt.annotate_rows(**{'beta': hl.rand_norm(0, hl.sqrt(annot*h2[0]/annot_sum))}) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
+        mt = mt.annotate_rows( beta = hl.rand_norm(0, hl.sqrt(annot*h2[0]/annot_sum))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
         return mt
     elif len(h2)>1 and pi==[1]: #multi-trait infinitesimal
         return multitrait_inf(mt=mt,h2=h2,rg=rg)
@@ -311,9 +311,9 @@ def annotate_all(mt,row_exprs={},col_exprs={},entry_exprs={},global_exprs={}):
 def binarize(mt,y,K):
     '''Binarize phenotype such that it has prevalence K = cases/(cases+controls)
     Uses inverse CDF.'''
-    stats = mt.aggregate_cols(hl.agg.stats(y))
-    threshold = stats.norm.ppf(1-K,loc=stats.mean,scale=stats.stdev)
-    mt = mt.annotate_cols(binarized_phen = y > threshold)
+    y_stats = mt.aggregate_cols(hl.agg.stats(y))
+    threshold = stats.norm.ppf(1-K,loc=y_stats.mean,scale=y_stats.stdev)
+    mt = mt.annotate_cols(binarized_phen = y > threshold)        
     return mt
     
 def check_h2(beta=None, y_no_noise=None, h2_exp=None):
