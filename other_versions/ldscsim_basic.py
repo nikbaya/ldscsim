@@ -383,7 +383,7 @@ def binarize(mt,y,K,exact=False):
         tb = mt.cols().order_by('y_'+tid)
         tb = tb.add_index('idx_'+tid)
         n = tb.count()
-        tb = tb.annotate(y_binarized = tb['idx_'+tid]+1 < round(n*K)) # "+1" because of zero indexing
+        tb = tb.annotate(y_binarized = tb['idx_'+tid]+1 <= round(n*K)) # "+1" because of zero indexing
         tb, mt = tb.key_by('y_'+tid), mt.key_cols_by('y_'+tid)
         mt = mt.annotate_cols(y_binarized = tb[mt['y_'+tid]].y_binarized)
         mt = mt.key_cols_by(*map(lambda x: mt[x],key))
