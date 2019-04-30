@@ -13,7 +13,7 @@ Basic version of ldscsim:
 import hail as hl
 from hail import dtype
 from hail.typecheck import typecheck, oneof, nullable
-from hail.expr.expressions import expr_float64, expr_int32, expr_array, expr_bool
+from hail.expr.expressions import expr_float64, expr_int32, expr_array
 from hail.matrixtable import MatrixTable
 from hail.utils.java import Env
 import numpy as np
@@ -167,11 +167,33 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
 def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
     '''Generates correlated betas for multi-trait infinitesimal simulations for 
     any number of phenotypes.
+    
+    Parameters
+    ----------
+    mt : :class:`.MatrixTable`
+        MatrixTable for simulated phenotype.
+    h2 : :obj:`float` or :obj:`int` or :obj:`list`, optional
+        Desired heritability of simulated traits. If h2=None, h2 is based on 
+        diagonal of cov_matrix.
+    rg : :obj:`float` or :obj:`int` or :obj:`list`, optional
+        Desired genetic correlation between simulated traits. If rg=None and 
+        cov_matrix=None, rg is assumed to be 0 between traits. If rg and 
+        cov_matrix are both not None, rg values from cov_matrix are used instead.
+    cov_matrix : :class:`numpy.ndarray`, optional
+        Covariance matrix for traits. Overrides h2 and rg if h2 and rg are not None.
+    seed : :obj:`int`, optional
+        Seed for random number generator. If seed=None, seed is set randomly.
+    
+    Returns
+    -------
+    :class:`.MatrixTable`
+        MatrixTable with simulated SNP effects as a row field of arrays.
     '''
     h2 = [h2] if type(h2) is not list else h2
     rg = [rg] if type(rg) is not list else rg
-    seed = seed if seed is not None else int(str(Env.next_seed())[:8])
     assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
+    assert h2 is not [None] or cov_matrix is not None, 'h2 and cov_matrix cannot both be None'
+    seed = seed if seed is not None else int(str(Env.next_seed())[:8])
     M = mt.count_rows()
     if cov_matrix != None:
         n_phens = cov_matrix.shape[0]
@@ -201,6 +223,32 @@ def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
 def multitrait_ss(mt, h2, pi, rg=0):
     '''Generates correlated betas for multi-trait spike & slab simulations for 
     2 phenotypes.
+    
+    Parameters
+    ----------
+    mt : :class:`.MatrixTable`
+        MatrixTable for simulated phenotype.
+    h2 : :obj:`list`
+        Desired heritability of simulated traits.
+    pi : :obj:`list`
+        List of proportion of SNPs: ptt, ptf, pft
+        ptt is the proportion of SNPs that are causal for both traits, ptf is
+        the proportion of SNPs that are causal for trait 1 but not trait 2,
+        pft is the proportion of SNPs that are causal for trait 2 but not trait 1.
+        pff is inferred based on the previous proportions and is the proportion
+        of SNPs that are not causal for both traits.
+    rg : :obj:`float` or :obj:`int`
+        Genetic correlation between traits.
+        
+    Notes
+    -----
+    May give inaccurate results if chosen parameters make cov_matrix not positive
+    semi-definite.
+    
+    Returns
+    -------
+    :class:`.MatrixTable`
+        MatrixTable with simulated SNP effects as a row field of arrays.
     '''
     ptt, ptf, pft, pff = pi[0], pi[1], pi[2], 1-sum(pi)
     cov_matrix = np.asarray([[1/(ptt+ptf), rg/ptt],[rg/ptt,1/(ptt+pft)]])
@@ -224,19 +272,32 @@ def multitrait_ss(mt, h2, pi, rg=0):
 @typecheck(h2=list,
            rg=list)
 def create_cov_matrix(h2, rg):
-    '''
-    Creates covariance matrix for simulating correlated betas. h2 values in h2
-    should be ordered by their order in the upper triangle of the covariance
-    array, reading from left to right, top to bottom. rg values should be ordered
-    in the order they appear in the covariance matrix, from top left to bottom right.
+    '''Creates covariance matrix for simulating correlated betas. 
+    
+    Parameters
+    ----------
+    h2 : :obj:`list`
+        h2 values for traits. h2 values in list should be ordered by their order 
+        in the upper triangle of the covariance array, reading from left to right,
+        top to bottom. Length of h2 should be same as number of traits.
+    rg : :obj:`list`        
+        rg values for traits. rg values should be ordered in the order they appear
+        in the covariance matrix, from top left to bottom right.
+    
+    Notes
+    -----
+    Covariance matrix is not scaled by number of SNPs.
+    
+    Returns
+    -------
+    :class:`numpy.ndarray`
     '''
     assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
     assert (all(x >= -1 and x<= 1 for x in rg)), 'rg values must be between 0 and 1'
     n_rg = len(rg)
     n_h2 = len(h2)
-    exp_n_rg = int((n_h2**2-n_h2)/2)
-    if n_rg is not exp_n_rg:
-        raise ValueError(f'The number of rg values given is {n_rg}, expected {exp_n_rg}')
+    exp_n_rg = int((n_h2**2-n_h2)/2) #expected number of rg values, given number of traits
+    assert n_rg is exp_n_rg, f'The number of rg values given is {n_rg}, expected {exp_n_rg}'
     rg = np.asarray(rg)
     cov_matrix = np.zeros(shape=[n_h2,n_h2])
     cov_matrix[np.triu_indices(n_h2, k=1)] = rg**2 #sets upper diagonal with covariances
@@ -254,6 +315,27 @@ def create_cov_matrix(h2, rg):
                              list)),
            popstrat=nullable(expr_int32))
 def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None):
+    '''Calculates phenotypes by multiplying genotypes and betas.
+    
+    Parameters
+    ----------
+    mt : :class:`.MatrixTable`
+        MatrixTable with all relevant fields passed as parameters.
+    genotype : :class:`.Expression`
+        Entry field of genotypes. 
+    beta : :class:`.Expression`
+        Row field of SNP effects.
+    h2 : :obj:`float` or :obj:`int` or :obj:`list`
+        Heritability of simulated trait. Can only be None if running annotation-
+        informed model.
+    popstrat : :class:`.Expression`, optional
+        Column field containing population stratification term.
+        
+    Returns
+    -------
+    :class:`.MatrixTable`
+        MatrixTable with simulated phenotype as column field.
+    '''
     tid = ''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase, k=5)) # "temporary id" -- random string to identify temporary intermediate fields generated by this method
     mt = annotate_all(mt=mt,
                       row_exprs={'beta_'+tid:beta},
@@ -271,7 +353,18 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None):
 @typecheck(genotypes=oneof(expr_int32,
                            expr_float64))
 def normalize_genotypes(genotypes):
-    '''Normalizes genotypes to have mean 0 and variance 1'''
+    '''Normalizes genotypes to have mean 0 and variance 1
+    
+    Parameters
+    ----------
+    genotypes : :class:`.Expression`
+        Entry field of genotypes.
+    
+    Returns
+    -------
+    :class:`.MatrixTable`
+        MatrixTable with normalized genotypes.
+    '''
     tid = ''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase, k=5)) # "temporary id" -- random string to identify temporary intermediate fields generated by this method
     mt = genotypes._indices.source
     mt = mt.annotate_entries(**{'gt_'+tid: genotypes})
@@ -283,7 +376,20 @@ def normalize_genotypes(genotypes):
 @typecheck(mt=MatrixTable,
            str_expr=str)
 def clean_fields(mt, str_expr):
-    '''Removes fields with names that have str_expr in them'''
+    '''Removes fields with names that have str_expr in them.
+    
+    Parameters
+    ----------
+    mt : :class:`.MatrixTable`
+        MatrixTable with fields to be removed.
+    str_expr : :obj:`str`
+        string to filter names of fields to remove.
+    
+    Returns
+    -------
+    :class:`.MatrixTable`
+        MatrixTable with specified fields removed.
+    '''
     all_fields = list(mt.col)+list(mt.row)+list(mt.entry)+list(mt.globals)
     return mt.drop(*(x for x in all_fields if str_expr in x))
 
@@ -319,7 +425,7 @@ def ascertainment_bias(mt,y,P):
         
     Returns
     -------
-    mt : :class:`.MatrixTable`
+    :class:`.MatrixTable`
         MatrixTable containing binary phenotype with prevalence of approx. P
     '''
     assert P>=0 and P<=1, 'P must be in [0,1]'
@@ -373,7 +479,7 @@ def binarize(mt,y,K,exact=False):
     
     Returns
     -------
-    mt : :class:`.MatrixTable`
+    :class:`.MatrixTable`
         MatrixTable containing binary phenotype with prevalence of approx. K
     '''
     if exact: 
