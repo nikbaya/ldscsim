@@ -4,8 +4,10 @@
 Created on Wed Mar 27 11:31:49 2019
 
 Basic version of ldscsim:
-    annotation-informed model takes only the field of aggregated annotations
-    adding population stratification takes only the field of aggregated covariates 
+    - annotation-informed model takes only the field of aggregated annotations
+    - adding population stratification takes only the field of aggregated covariates 
+    - no header printed
+    - no simulation metadata stored in globals
 
 @author: nbaya
 """
