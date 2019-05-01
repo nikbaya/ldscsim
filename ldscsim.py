@@ -500,14 +500,3 @@ def binarize(mt,y,K,exact=False):
         threshold = stats.norm.ppf(1-K,loc=y_stats.mean,scale=y_stats.stdev)
         mt = mt.annotate_cols(y_binarized = y > threshold)
     return mt
-
-def check_h2(beta=None, y_no_noise=None, h2_exp=None):
-    '''Check the h2 of simulated trait'''
-    if beta is not None and y_no_noise is None:
-        mt = beta._indices.source
-        h2_obs = mt.aggregate_rows(hl.agg.stats(beta)).stdev**2*mt.count_rows()
-    elif y_no_noise is not None:
-        mt = y_no_noise._indices.source
-        h2_obs = mt.aggregate_cols(hl.agg.stats(y_no_noise)).stdev**2
-    print('' if h2_exp is None else f'\rExpected h2 from sim: {h2_exp}')
-    print(f'\rObserved h2 from sim: {h2_obs}')
