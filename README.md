@@ -1,5 +1,5 @@
 # ldscsim
-`ldscsim` is a module to simulate phenotypes. It was designed to generate phenotypes for testing [`ldsc`](https://github.com/bulik/ldsc), but is extensible to general use.
+`ldscsim` is a module to simulate phenotypes. It is designed to test [`ldsc`](https://github.com/bulik/ldsc), but is extensible to general use.
 <br>
 
 ## Model descriptions
@@ -13,7 +13,7 @@ After calculating the matrix product of genotypes and SNP effects, it is possibl
 <br>
 
 ## Getting started
-`simulate()` is the method which wraps other methods in the package. However, all methods are self-contained. For instance, if you just want to calculate simulated phenotypes using betas (SNP effects) generated outside of the `ldscsim` framework, you can use `sim_phenotypes()` independent of `simulate()`.
+`simulate_phenotypes()` is the main method wrapping other methods in the package. However, all methods are self-contained. 
 
 Assume for all examples that we have the following MatrixTable `mt`:
 
