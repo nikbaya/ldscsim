@@ -40,7 +40,7 @@ import scipy.stats as stats
            popstrat=nullable(oneof(expr_int32,
                                    expr_float64)))
 def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat=None):
-    r'''Simulate phenotypes for testing LD score regression.
+    '''Simulate phenotypes for testing LD score regression.
     
     Simulates betas (SNP effects) under the infinitesimal, spike & slab, or 
     annotation-informed models, depending on parameters passed. Optionally adds
@@ -495,7 +495,7 @@ def binarize(mt,y,K,exact=False):
         tb, mt = tb.key_by('y_'+tid), mt.key_cols_by('y_'+tid)
         mt = mt.annotate_cols(y_binarized = tb[mt['y_'+tid]].y_binarized)
         mt = mt.key_cols_by(*map(lambda x: mt[x],key))
-    else:
+    else: #use inverse CDF
         y_stats = mt.aggregate_cols(hl.agg.stats(y))
         threshold = stats.norm.ppf(1-K,loc=y_stats.mean,scale=y_stats.stdev)
         mt = mt.annotate_cols(y_binarized = y > threshold)
