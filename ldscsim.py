@@ -7,7 +7,6 @@ Basic version of ldscsim:
     - annotation-informed model takes only the field of aggregated annotations
     - adding population stratification takes only the field of aggregated covariates 
     - no header printed
-    - no simulation metadata stored in globals
 
 @author: nbaya
 """
@@ -31,7 +30,8 @@ import scipy.stats as stats
                              int,
                              list)),
            pi=nullable(oneof(float,
-                             int)),
+                             int,
+                             list)),
            rg=nullable(oneof(float,
                              int,
                              list)),
@@ -103,7 +103,9 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
            h2=nullable(oneof(float,
                              int,
                              list)),
-           pi=oneof(float,int),
+           pi=oneof(float,
+                    int,
+                    list),
            annot=nullable(oneof(expr_float64,
                                 expr_int32)),
            rg=nullable(oneof(float,
@@ -150,7 +152,7 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
     elif len(h2)>1 and pi==[1]: #multi-trait infinitesimal
         return multitrait_inf(mt=mt,h2=h2,rg=rg)
     elif len(h2)==2 and len(pi)>1: #multi-trait spike & slab
-        return multitrait_ss(mt=mt,h2=h2,rg=rg,pi=pi)
+        return multitrait_ss(mt=mt,h2=h2,rg=0 if rg is [None] else rg[0],pi=pi)
     elif len(h2)==1 and pi==[1]: #infinitesimal/spike & slab
         M = mt.count_rows()
         return mt.annotate_rows(beta = hl.rand_bool(pi[0])*hl.rand_norm(0,hl.sqrt(h2[0]/(M*pi[0]))))
@@ -242,8 +244,8 @@ def multitrait_ss(mt, h2, pi, rg=0):
     rg : :obj:`float` or :obj:`int`
         Genetic correlation between traits.
         
-    Notes
-    -----
+    Warning
+    -------
     May give inaccurate results if chosen parameters make cov_matrix not positive
     semi-definite.
     
@@ -501,18 +503,19 @@ def binarize(mt,y,K,exact=False):
         mt = mt.annotate_cols(y_binarized = y > threshold)
     return mt
 
-@typecheck(mt=MatrixTable,
+@typecheck(tb=oneof(MatrixTable,
+                    Table),
            coef_dict=nullable(dict),
            str_expr=nullable(str),
            axis=str)
-def agg_fields(mt,coef_dict=None,str_expr=None,axis='rows'):
+def agg_fields(tb,coef_dict=None,str_expr=None,axis='rows'):
     '''Aggregates by linear combination fields matching either keys in `coef_dict`
     or `str_expr`. 
     
     Parameters
     ----------
-    mt : :class:`.MatrixTable`
-        MatrixTable containing fields to be aggregated.
+    tb : :class:`.MatrixTable` or :class:`.Table`
+        MatrixTable or Table containing fields to be aggregated.
     coef_dict : :obj:`dict`, optional
         Coefficients to multiply each field. The coefficients are specified by 
         `coef_dict` value, the row (or col) field name is specified by `coef_dict` key.
@@ -521,36 +524,37 @@ def agg_fields(mt,coef_dict=None,str_expr=None,axis='rows'):
         String expression to match against row (or col) field names.
     axis : :obj:`str`
         Either 'rows' or 'cols'. If 'rows', this aggregates across row fields. 
-        If 'cols', this aggregates across col fields.
+        If 'cols', this aggregates across col fields. If tb is a Table, axis = 'rows'.
     
     Returns
     -------
-    :class:`.MatrixTable`
-        MatrixTable containing aggregated fields.
+    :class:`.MatrixTable` or :class:`.Table`
+        MatrixTable or Table containing aggregated fields.
     '''
     assert (str_expr != None or coef_dict != None), "str_expr and coef_dict cannot both be None"
     assert axis is 'rows' or axis is 'cols', "axis must be 'rows' or 'cols'"
-    coef_dict = get_coef_dict(mt=mt,str_expr=str_expr, coef_ref_dict=coef_dict,axis=axis)
+    coef_dict = get_coef_dict(tb=tb,str_expr=str_expr, ref_coef_dict=coef_dict,axis=axis)
     axis_field = 'annot' if axis=='rows' else 'cov'
-    annotate_fn = MatrixTable.annotate_rows if axis=='rows' else MatrixTable.annotate_cols
-    mt = annotate_fn(mt,**{'agg_'+axis_field: 0})
+    annotate_fn = (MatrixTable.annotate_rows if axis=='rows' else MatrixTable.annotate_cols) if type(tb) is MatrixTable else Table.annotate
+    tb = annotate_fn(self=tb,**{'agg_'+axis_field: 0})
     print(f'Fields and associated coefficients used in {axis_field} aggregation: {coef_dict}')
     for field,coef in coef_dict.items():
-        mt = annotate_fn(mt,**{'agg_'+axis_field: mt['agg_'+axis_field]+coef*mt[field]})
-    return mt
+        tb = annotate_fn(self=tb,**{'agg_'+axis_field: tb['agg_'+axis_field]+coef*tb[field]})
+    return tb
 
-@typecheck(mt=MatrixTable,
+@typecheck(tb=oneof(MatrixTable,
+                    Table),
            str_expr=nullable(str),
            ref_coef_dict=nullable(dict),
            axis=str)
-def get_coef_dict(mt, str_expr=None, ref_coef_dict=None,axis='rows'):
+def get_coef_dict(tb, str_expr=None, ref_coef_dict=None,axis='rows'):
     '''Gets either col or row fields matching `str_expr` and take intersection 
     with keys in coefficient reference dict.
     
     Parameters
     ----------
-    mt : :class:`.MatrixTable`
-        MatrixTable containing row (or col) for `coef_dict`.
+    tb : :class:`.MatrixTable` or :class:`.Table`
+        MatrixTable or Table containing row (or col) for `coef_dict`.
     str_expr : :obj:`str`, optional
         String expression pattern to match against row (or col) fields. If left
         unspecified, the intersection of field names is only between existing 
@@ -569,7 +573,7 @@ def get_coef_dict(mt, str_expr=None, ref_coef_dict=None,axis='rows'):
     '''
     assert (str_expr != None or ref_coef_dict != None), "str_expr and ref_coef_dict cannot both be None"
     assert axis is 'rows' or axis is 'cols', "axis must be 'rows' or 'cols'"
-    fields_to_search = (mt.row if axis=='rows' else mt.col)
+    fields_to_search = (tb.row if axis=='rows' or type(tb) is Table else tb.col)
     axis_field = 'annotation' if axis=='rows' else 'covariate' #when axis='rows' we're searching for annotations, axis='cols' searching for covariates
     if str_expr is None: 
         coef_dict = {k: ref_coef_dict[k] for k in ref_coef_dict.keys() if k in fields_to_search} # take all row (or col) fields in mt matching keys in coef_dict
