@@ -14,11 +14,11 @@
 
 
 #### Modeling population stratification
-After calculating the matrix product of genotypes and SNP effects, it is possible to add population stratification. Population stratification is a term added to the phenotype, which is the linear combination of covariates scaled by coefficients provided by the user (if not provided, they are assumed to be 1).
+After calculating the matrix product of genotypes and SNP effects, it is possible to add population stratification. Population stratification is a term added to the phenotype, which is the linear combination of covariates scaled by coefficients provided by the user (if not provided, coefficients are assumed to be 1).
 <br>
 
 ## Getting started
-`simulate_phenotypes()` is the main method wrapping other methods in the package. However, all methods are self-contained. 
+`simulate_phenotypes()` is the main method wrapping other methods in the package. However, all methods are self-contained and thus can be run independently. 
 
 Assume for all examples that we have the following MatrixTable `mt`:
 
