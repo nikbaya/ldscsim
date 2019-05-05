@@ -24,9 +24,6 @@ Assume for all examples that we have the following MatrixTable `mt`:
 
 ```python
 >>> mt.describe()
-```
-
-```
 ––––––––––––––––––––––––––––––––––––––––
 Global fields:
     None
@@ -48,7 +45,7 @@ Entry fields:
 ––––––––––––––––––––––––––––––––––––––––
 Column key: ['s']
 Row key: ['rsid']
-––––––––––––––––––––––––––––––––––––––––
+––––––––––––––––––––––––––––––––––––––––"
 ```
 
 * `mt.s` : Sample IDs
