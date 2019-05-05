@@ -14,7 +14,7 @@
 
 
 #### Modeling population stratification
-After calculating the matrix product of genotypes and SNP effects, it is possible to add population stratification. Population stratification is a term added to the phenotype, which is the linear combination of covariates scaled by given coefficients.
+After calculating the matrix product of genotypes and SNP effects, it is possible to add population stratification. Population stratification is a term added to the phenotype, which is the linear combination of covariates scaled by coefficients provided by the user (if not provided, they are assumed to be 1).
 <br>
 
 ## Getting started
@@ -61,11 +61,29 @@ Simulate a phenotype under the infinitesimal model with heritability = 0.1
 >>> sim = simulate_phenotypes(mt=mt,genotype=mt.gt,h2=0.1)
 ```
 
+Simulate two phenotypes under the infinitesimal model with heritabilities 0.3 and 0.4 and genetic correlation of 0.6
+
+```python
+>>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.3, 0.4], rg=0.6)
+```
+
+Simulate three phenotypes under the infinitesimal model with heritabilities 0.1, 0.2, 0.7 and the following genetic correlations: trait 1 & trait 2 = 0.8, trait 1 & trait 3 = 0.5, trait 2 & trait 3 = 0.4
+
+```python
+>>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.1, 0.2, 0.7], rg=[0.8, 0.5, 0.4])
+```
+
 ### Spike & Slab Model
 Simulate a phenotype with heritability = 0.1 and probability of a SNP being causal = 0.01
 
 ```python
->>> sim = simulate_phenotypes(mt=mt,genotype=mt.gt,h2=0.1,pi=0.01)
+>>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=0.1, pi=0.01)
+```
+
+Simulate two correlated phenotypes with heritabilities 0.8 and 0.9, genetic correlation of 0.5, and the following probabilities of SNPs being causal: probability a SNP is causal for both traits = 0.3, probability SNP is causal for trait 1 but not trait 2 = 0.1, probability SNP is causal for trait 2 but not trait 1 = 0.2. Expected proportion of SNPs causal for trait 1: 0.1 + 0.3 = 0.4, expected proportion of SNPs causal for trait 2: 0.1 + 0.2 = 0.3
+
+```python
+>>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.8, 0.9], pi=[0.3, 0.1, 0.2], rg =0.5)
 ```
 
 ### Annotation-Informed Model
