@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Mar 27 11:31:49 2019
+Basic version of ldscsim.
 
-Basic version of ldscsim:
+Models for SNP effects:
+    - Infinitesimal (can simulate n correlated traits)
+    - Spike & slab (can simulate 2 correlated traits)
+    - Annotation-informed
+    
+Field aggregation tools for annotation-informed model and population stratification
+using many covariates.
+
+Changes from previous version:
     - annotation-informed model takes only the field of aggregated annotations
     - adding population stratification takes only the field of aggregated covariates 
     - no header printed
@@ -180,11 +188,14 @@ def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
         Desired heritability of simulated traits. If h2=None, h2 is based on 
         diagonal of cov_matrix.
     rg : :obj:`float` or :obj:`int` or :obj:`list`, optional
-        Desired genetic correlation between simulated traits. If rg=None and 
+        Desired genetic correlation between simulated traits. If simulating more 
+        than two correlated traits, rg should be a list of rg values corresponding
+        to the upper right triangle of the covariance matrix. If rg=None and 
         cov_matrix=None, rg is assumed to be 0 between traits. If rg and 
         cov_matrix are both not None, rg values from cov_matrix are used instead.
     cov_matrix : :class:`numpy.ndarray`, optional
-        Covariance matrix for traits. Overrides h2 and rg if h2 and rg are not None.
+        Covariance matrix for traits, unscaled by `M`. Overrides h2 and rg if h2
+        and rg are not None.
     seed : :obj:`int`, optional
         Seed for random number generator. If seed=None, seed is set randomly.
     
