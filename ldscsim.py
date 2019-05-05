@@ -225,8 +225,7 @@ def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
            rg=oneof(float,
                     int))
 def multitrait_ss(mt, h2, pi, rg=0):
-    """Generates correlated betas for multi-trait spike & slab simulations for 
-    2 phenotypes.
+    """Generates spike & slab betas for simulation of two correlated phenotypes.
     
     Parameters
     ----------
@@ -467,8 +466,8 @@ def ascertainment_bias(mt,y,P):
            exact=bool)
 def binarize(mt,y,K,exact=False):
     """Binarize phenotype `y` such that it has prevalence `K` = cases/(cases+controls)
-    Uses inverse CDF to set binarization threshold when exact = False, otherwise
-    uses ranking to determine threshold.
+    Uses inverse CDF of Gaussian to set binarization threshold when exact = False, 
+    otherwise uses ranking to determine threshold.
     
     Parameters
     ----------
