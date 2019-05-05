@@ -292,11 +292,12 @@ def create_cov_matrix(h2, rg):
     ----------
     h2 : :obj:`list`
         h2 values for traits. h2 values in list should be ordered by their order 
-        in the upper triangle of the covariance array, reading from left to right,
-        top to bottom. Length of h2 should be same as number of traits.
+        in the diagonal of the covariance array, reading from top left to bottom
+        right.
     rg : :obj:`list`        
         rg values for traits. rg values should be ordered in the order they appear
-        in the covariance matrix, from top left to bottom right.
+        in the upper triangle of the covariance matrix, from left to right, top to
+        bottom.
     
     Notes
     -----
