@@ -185,24 +185,24 @@ def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
         MatrixTable for simulated phenotype.
     h2 : :obj:`float` or :obj:`int` or :obj:`list`, optional
         Desired SNP-based heritability (:math:`h^2`) of simulated traits. 
-        If ``h2``=None, :math:`h^2` is based on diagonal of ``cov_matrix``.
+        If ``h2=None``, :math:`h^2` is based on diagonal of ``cov_matrix``.
     rg : :obj:`float` or :obj:`int` or :obj:`list`, optional
         Desired genetic correlation (:math:`r_g`) between simulated traits. 
         If simulating more than two correlated traits, ``rg`` should be a list 
         of :math:`rg` values corresponding to the upper right triangle of the 
-        covariance matrix. If ``rg``=None and ``cov_matrix``=None, :math:`r_g` 
+        covariance matrix. If ``rg=None`` and ``cov_matrix=None``, :math:`r_g` 
         is assumed to be 0 between traits. If ``rg`` and ``cov_matrix`` are both
         not None, :math:`r_g` values from ``cov_matrix`` take precedence.
     cov_matrix : :class:`numpy.ndarray`, optional
-        Covariance matrix for traits, unscaled by :math:`M`, the number of SNPs. 
-        Overrides ``h2`` and ``rg`` even when ``h2`` and ``rg`` are not None.
+        Covariance matrix for traits, **unscaled by :math:`M`**, the number of SNPs. 
+        Overrides ``h2`` and ``rg`` even when ``h2`` or ``rg`` are not ``None``.
     seed : :obj:`int`, optional
-        Seed for random number generator. If ``seed``=None, seed is set randomly.
+        Seed for random number generator. If ``seed=None``, seed is set randomly.
     
     Returns
     -------
     :class:`.MatrixTable`
-        MatrixTable with simulated SNP effects as a row field of arrays.
+        :class:`.MatrixTable` with simulated SNP effects as a row field of arrays.
     """
     h2 = [h2] if type(h2) is not list else h2
     rg = [rg] if type(rg) is not list else rg
@@ -242,9 +242,9 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
     Parameters
     ----------
     mt : :class:`.MatrixTable`
-        MatrixTable for simulated phenotype.
+        :class:`.MatrixTable` for simulated phenotype.
     h2 : :obj:`list`
-        Desired heritability of simulated traits.
+        Desired SNP-based heritability of simulated traits.
     pi : :obj:`list`
         List of proportion of SNPs: :math:`p_{TT}`, :math:`p_{TF}`, :math:`p_{FT}`
         :math:`p_{TT}` is the proportion of SNPs that are causal for both traits, 
@@ -255,7 +255,7 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
     rg : :obj:`float` or :obj:`int`
         Genetic correlation between traits.
     seed : :obj:`int`, optional
-        Seed for random number generator. If ``seed``=None, ``seed`` is set randomly.
+        Seed for random number generator. If ``seed=None``, ``seed`` is set randomly.
     
     Warning
     -------
@@ -380,7 +380,7 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None):
         Row field of SNP effects.
     h2 : :obj:`float` or :obj:`int` or :obj:`list`
         SNP-based heritability (:math:`h^2`) of simulated trait. Can only be 
-        `None` if running annotation-informed model.
+        ``None`` if running annotation-informed model.
     popstrat : :class:`.Expression`, optional
         Column field containing population stratification term.
         
@@ -613,11 +613,11 @@ def get_coef_dict(tb, str_expr=None, ref_coef_dict=None,axis='rows'):
         Reference coefficient dictionary with keys that are row (or col) field 
         names from which to subset. If not included, coefficients are assumed to be 1.
     axis : :obj:`str`
-        Field type in which to search for field names.
+        Field type in which to search for field names. Options: 'rows', 'cols'
         
     Returns
     -------
-    coef_dict : :obj:`dict`, optional
+    coef_dict : :obj:`dict`
         Coefficients to multiply each field. The coefficients are specified by 
         ``coef_dict`` value, the row (or col) field name is specified by ``coef_dict`` key. 
     '''
