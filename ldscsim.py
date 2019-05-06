@@ -299,6 +299,37 @@ def create_cov_matrix(h2, rg):
         rg values for traits. rg values should be ordered in the order they appear
         in the upper triangle of the covariance matrix, from left to right, top to
         bottom.
+        
+    Example
+    -------
+    Suppose we have four traits with the following heritabilities (h2): 0.1, 0.3, 0.2, 0.6.
+    That is, trait 1 has an h2 of 0.1, trait 2 has an h2 of 0.3 and so on.
+    Suppose the genetic correlations (rg) between traits are the following:
+    trait 1 & trait 2 rg = 0.4
+    trait 1 & trait 3 rg = 0.7
+    trait 1 & trait 4 rg = 0
+    trait 2 & trait 3 rg = 0.9
+    trait 2 & trait 4 rg = 0.15
+    trait 3 & trait 4 rg = 1
+    To obtain the covariance matrix corresponding to this scenario h2 values are
+    ordered according to user specification and rg values are ordered by the 
+    order in which the corresponding genetic covariance terms will appear in the 
+    covariance matrix, reading lines in the upper triangular matrix from left to
+    right, top to bottom (read first row left to right, read second row left to 
+    right, etc.), exluding the diagonal:
+    
+    >>> create_cov_matrix(h2=[0.1, 0.3, 0.2, 0.6], rg=[0.4, 0.7, 0, 0.9, 0.15, 1])
+    array([[0.1       , 0.06928203, 0.09899495, 0.        ],
+           [0.06928203, 0.3       , 0.22045408, 0.06363961],
+           [0.09899495, 0.22045408, 0.2       , 0.34641016],
+           [0.        , 0.06363961, 0.34641016, 0.6       ]])
+    
+    The diagonal corresponds directly to `h2`, the list of h2 values for all traits.
+    In the upper triangular matrix, excluding the diagonal, the entry (a, b), 
+    where a and b are in {1,2,3,4}, is the genetic covariance (rho_g) between 
+    traits a and b. Genetic covariance is calculated as rho_g = rg*sqrt(h2_a*h2_b)
+    where rg is the genetic correlation between traits a and b and h2_a and h2_b
+    are heritabilities corresponding to traits a and b.
     
     Notes
     -----
