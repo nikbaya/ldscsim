@@ -52,28 +52,28 @@ Simulate a phenotype under the infinitesimal model with heritability = 0.1
 ```python
 >>> sim = simulate_phenotypes(mt=mt,genotype=mt.gt,h2=0.1)
 >>> sim.describe()
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Global fields:
     'ldscsim': struct {
         h2: float64
     }
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Column fields:
     's': str
     'y_no_noise': float64
     'y': float64
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Row fields:
     'rsid': str
     'beta': float64
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Entry fields:
     'gt': int32
     'norm_gt': float64
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Column key: ['s']
 Row key: ['rsid']
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 ```
 In `sim`, `y` is the simulated phenotype with approximate distribution N(mean=0,var=1). `y_no_noise` is the simulated phenotype without noise added and is approximately distributed as Normal(mean=0,var=`h2`). `beta` are the SNP effects for the simulated trait and have the approximate distribution N(mean=0,var=`h2`/M), where M is the number of SNPs. `norm_gt` is the normalized genotype used to calculate the phenotype. Genotypes are normalized such that at a given SNP, the distribution of genotypes across individuals is approximately N(mean=0,var=1). In the global variables, `mt.ldscsim.h2` is the `h2` parameter passed to the simulation.
 
@@ -90,29 +90,29 @@ Simulate two phenotypes under the infinitesimal model with heritabilities 0.3 an
 ```python
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.3, 0.4], rg=0.6)
 >>> sim.describe()
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Global fields:
     'ldscsim': struct {
         h2: array<float64>, 
         rg: float64
     }
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Column fields:
     's': str
     'y_no_noise': array<float64>
     'y': array<float64>
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Row fields:
     'rsid': str
     'beta': array<float64>
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Entry fields:
     'gt': int32
     'norm_gt': float64
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Column key: ['s']
 Row key: ['rsid']
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 ```
 Compared to the previous simulation, the main changes are that `beta`,`y_no_noise`, and `y` are all arrays because they hold values for all traits.
 ```python
@@ -149,26 +149,26 @@ Simulate three phenotypes under the infinitesimal model with heritabilities 0.1,
 ```python
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.1, 0.2, 0.7], rg=[0.8, 0.5, 0.4])
 >>> sim.describe()
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Global fields:
     'ldscsim': struct {
         h2: array<float64>, 
         rg: array<float64>
     }
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Column fields:
     's': str
     'y_no_noise': array<float64>
     'y': array<float64>
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Row fields:
     'rsid': str
     'beta': array<float64>
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Entry fields:
     'gt': int32
     'norm_gt': float64
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Column key: ['s']
 Row key: ['rsid']
 ----------------------------------------
@@ -200,29 +200,29 @@ Simulate a phenotype with heritability = 0.1 and probability of a SNP being caus
 ```python
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=0.1, pi=0.01)
 >>> sim.describe()
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Global fields:
     'ldscsim': struct {
         h2: float64, 
         pi: float64
     }
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Column fields:
     's': str
     'y_no_noise': float64
     'y': float64
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Row fields:
     'rsid': str
     'beta': float64
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Entry fields:
     'gt': int32
     'norm_gt': float64
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 Column key: ['s']
 Row key: ['rsid']
-----------------------------------------
+––––––––––––––––––––––––––––––––––––––––
 ```
 
 Simulate two correlated phenotypes with heritabilities 0.8 and 0.9, genetic correlation of 0.5, and the following probabilities of SNPs being causal: probability a SNP is causal for both traits = 0.3, probability SNP is causal for trait 1 but not trait 2 = 0.1, probability SNP is causal for trait 2 but not trait 1 = 0.2. Expected proportion of SNPs causal for trait 1: 0.1 + 0.3 = 0.4, expected proportion of SNPs causal for trait 2: 0.1 + 0.2 = 0.3
