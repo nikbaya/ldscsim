@@ -71,7 +71,9 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
         Probability of SNP being causal when simulating under the spike & slab 
         model.
     rg : :obj:`float` or :obj:`int` or :obj:`list`
-        Genetic correlation between traits.
+        Genetic correlation between traits. If simulating more than 2 phenotypes,
+        see docstring of create_cov_matrix for instructions on how to order rg values
+        in the list, relative to order of h2 values.
     annot : :class:`.Expression`
         Row field to use as our aggregated annotations.
     popstrat: :class:`.Expression`
@@ -189,9 +191,9 @@ def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
         Desired heritability of simulated traits. If h2=None, h2 is based on 
         diagonal of cov_matrix.
     rg : :obj:`float` or :obj:`int` or :obj:`list`, optional
-        Desired genetic correlation between simulated traits. If simulating more 
-        than two correlated traits, rg should be a list of rg values corresponding
-        to the upper right triangle of the covariance matrix. If rg=None and 
+        Desired genetic correlation between simulated traits. If simulating more than
+        2 phenotypes, see docstring of create_cov_matrix for instructions on how to
+        order rg values in the list, relative to order of h2 values. If rg=None and 
         cov_matrix=None, rg is assumed to be 0 between traits. If rg and 
         cov_matrix are both not None, rg values from cov_matrix are used instead.
     cov_matrix : :class:`numpy.ndarray`, optional
