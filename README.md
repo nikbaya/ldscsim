@@ -252,7 +252,7 @@ Phenotypes have heritabilities 0.8 and 0.9, genetic correlation of 0.5, and the 
 ```
 
 ### Annotation-Informed Model
-[see method docstring for more information]
+[see method `make_betas()` docstring for more information]
 
 Assume for this example we have the following MatrixTable `mt`:
 
@@ -279,5 +279,5 @@ Row key: ['rsid']
 * `mt.a1`,`mt.a2`,`mt.a3` : Annotations we want to use for an annotation-informed model
 
 ### Population Stratification
-[see method docstring for more information]
+[*In development*]
 * `mt.PC1`,`mt.PC2`,`mt.PC3` : Covariates we want to use for population stratification
