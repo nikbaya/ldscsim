@@ -22,24 +22,24 @@ After calculating the matrix product of genotypes and SNP effects, it is possibl
 
 Assume for the examples of the infinitesimal and spike & slab models that we have the following MatrixTable `mt`:
 
-```python
+```
 >>> mt.describe()
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Global fields:
     None
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column fields:
     's': str 
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Row fields:
     'rsid': str 
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Entry fields:
     'gt': int32 
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column key: ['s']
 Row key: ['rsid']
-––––––––––––––––––––––––––––––––––––––––"
+----------------------------------------
 ```
 
 * `mt.s` : Sample IDs
@@ -52,33 +52,33 @@ Simulate a phenotype under the infinitesimal model with heritability = 0.1
 ```python
 >>> sim = simulate_phenotypes(mt=mt,genotype=mt.gt,h2=0.1)
 >>> sim.describe()
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Global fields:
     'ldscsim': struct {
         h2: float64
     }
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column fields:
     's': str
     'y_no_noise': float64
     'y': float64
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Row fields:
     'rsid': str
     'beta': float64
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Entry fields:
     'gt': int32
     'norm_gt': float64
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column key: ['s']
 Row key: ['rsid']
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 ```
 In `sim`, `y` is the simulated phenotype with approximate distribution N(mean=0,var=1). `y_no_noise` is the simulated phenotype without noise added and is approximately distributed as Normal(mean=0,var=`h2`). `beta` are the SNP effects for the simulated trait and have the approximate distribution N(mean=0,var=`h2`/M), where M is the number of SNPs. `norm_gt` is the normalized genotype used to calculate the phenotype. Genotypes are normalized such that at a given SNP, the distribution of genotypes across individuals is approximately N(mean=0,var=1). In the global variables, `mt.ldscsim.h2` is the `h2` parameter passed to the simulation.
 
 To check heritability of simulated trait:
-```python
+```
 >>> hl.eval(sim.ldscsim.h2) # the expected h2 passed as a parameter
 0.1 
 >>> sim.aggregate_cols(hl.agg.stats(sim.y_no_noise)).stdev**2 # calculating observed h2
@@ -87,35 +87,35 @@ To check heritability of simulated trait:
 
 Simulate two phenotypes under the infinitesimal model with heritabilities 0.3 and 0.4 and genetic correlation of 0.6
 
-```python
+```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.3, 0.4], rg=0.6)
 >>> sim.describe()
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Global fields:
     'ldscsim': struct {
         h2: array<float64>, 
         rg: float64
     }
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column fields:
     's': str
     'y_no_noise': array<float64>
     'y': array<float64>
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Row fields:
     'rsid': str
     'beta': array<float64>
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Entry fields:
     'gt': int32
     'norm_gt': float64
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column key: ['s']
 Row key: ['rsid']
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 ```
 Compared to the previous simulation, the main changes are that `beta`,`y_no_noise`, and `y` are all arrays because they hold values for all traits.
-```python
+```
 >>> sim.cols().show()
 +-----------+-----------------------+-----------------------+
 | s         | y_no_noise            | y                     |
@@ -146,29 +146,29 @@ To check the heritabilities and genetic correlations between traits:
 
 Simulate three phenotypes under the infinitesimal model with heritabilities 0.1, 0.2, 0.7 and the following genetic correlations: trait 1 & trait 2 = 0.8, trait 1 & trait 3 = 0.5, trait 2 & trait 3 = 0.4
 
-```python
+```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.1, 0.2, 0.7], rg=[0.8, 0.5, 0.4])
 >>> sim.describe()
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Global fields:
     'ldscsim': struct {
         h2: array<float64>, 
         rg: array<float64>
     }
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column fields:
     's': str
     'y_no_noise': array<float64>
     'y': array<float64>
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Row fields:
     'rsid': str
     'beta': array<float64>
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Entry fields:
     'gt': int32
     'norm_gt': float64
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column key: ['s']
 Row key: ['rsid']
 ----------------------------------------
@@ -197,32 +197,32 @@ This produces a similar MatrixTable to the previous simulation. However, all arr
 ### Spike & Slab Model
 Simulate a phenotype with heritability = 0.1 and probability of a SNP being causal = 0.01
 
-```python
+```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=0.1, pi=0.01)
 >>> sim.describe()
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Global fields:
     'ldscsim': struct {
         h2: float64, 
         pi: float64
     }
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column fields:
     's': str
     'y_no_noise': float64
     'y': float64
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Row fields:
     'rsid': str
     'beta': float64
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Entry fields:
     'gt': int32
     'norm_gt': float64
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column key: ['s']
 Row key: ['rsid']
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 ```
 
 Simulate two correlated phenotypes with heritabilities 0.8 and 0.9, genetic correlation of 0.5, and the following probabilities of SNPs being causal: probability a SNP is causal for both traits = 0.3, probability SNP is causal for trait 1 but not trait 2 = 0.1, probability SNP is causal for trait 2 but not trait 1 = 0.2. Expected proportion of SNPs causal for trait 1: 0.1 + 0.3 = 0.4, expected proportion of SNPs causal for trait 2: 0.1 + 0.2 = 0.3
@@ -238,23 +238,23 @@ Assume for this example we have the following MatrixTable `mt`:
 
 ```python
 >>> mt.describe()
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Global fields:
     None
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column fields:
     's': str 
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Row fields:
     'rsid': str 
     
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Entry fields:
     'gt': int32 
-––––––––––––––––––––––––––––––––––––––––
+----------------------------------------
 Column key: ['s']
 Row key: ['rsid']
-––––––––––––––––––––––––––––––––––––––––"
+----------------------------------------
 ```
 * `mt.a1`,`mt.a2`,`mt.a3` : Annotations we want to use for an annotation-informed model
 
