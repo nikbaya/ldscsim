@@ -47,8 +47,10 @@ import scipy.stats as stats
            annot=nullable(oneof(expr_float64,
                                 expr_int32)),
            popstrat=nullable(oneof(expr_int32,
-                                   expr_float64)))
-def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat=None):
+                                   expr_float64)),
+           popstrat_var=nullable(oneof(float,
+                                       int)))
+def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat=None,popstrat_var=None):
     """Simulate phenotypes for testing LD score regression.
     
     Simulates betas (SNP effects) under the infinitesimal, spike & slab, or 
@@ -92,7 +94,8 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
                                                            **({} if pi is None else {'pi':pi}),
                                                            **({} if rg is None else {'rg':rg}),
                                                            **({} if annot is None else {'is_annot_inf':True}),
-                                                           **({} if popstrat is None else {'is_popstrat_inf':True})
+                                                           **({} if popstrat is None else {'is_popstrat_inf':True}),
+                                                           **({} if popstrat_var is None else {'popstrat_var':popstrat_var})
                                                            })})
     mt = make_betas(mt=mt, 
                     h2=h2, 
@@ -103,7 +106,8 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
                               genotype=mt['gt_'+tid], 
                               beta=mt['beta'],
                               h2 = h2,
-                              popstrat=None if popstrat is None else mt['popstrat_'+tid])
+                              popstrat=None if popstrat is None else mt['popstrat_'+tid],
+                              popstrat_var=popstrat_var)
     mt = _clean_fields(mt, tid)
     return mt
     
@@ -135,7 +139,7 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
         SNP-based heritability of simulated trait(s). 
     pi : :obj:`float` or :obj:`int` or :obj:`list`
         Probability of SNP being causal when simulating under the spike & slab 
-        model. If doing two-trait spike & slab ``pi`` is a list of probabilities for
+        model. If doing two-trait spike & slab `pi` is a list of probabilities for
         overlapping causal SNPs (see docstring of :func:`.multitrait_ss`)
     annot : :class:`.Expression`
         Row field of aggregated annotations for annotation-informed model.
@@ -185,19 +189,19 @@ def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
         MatrixTable for simulated phenotype.
     h2 : :obj:`float` or :obj:`int` or :obj:`list`, optional
         Desired SNP-based heritability (:math:`h^2`) of simulated traits. 
-        If ``h2=None``, :math:`h^2` is based on diagonal of ``cov_matrix``.
+        If `h2` is ``None``, :math:`h^2` is based on diagonal of `cov_matrix`.
     rg : :obj:`float` or :obj:`int` or :obj:`list`, optional
         Desired genetic correlation (:math:`r_g`) between simulated traits. 
-        If simulating more than two correlated traits, ``rg`` should be a list 
+        If simulating more than two correlated traits, `rg` should be a list 
         of :math:`rg` values corresponding to the upper right triangle of the 
-        covariance matrix. If ``rg=None`` and ``cov_matrix=None``, :math:`r_g` 
-        is assumed to be 0 between traits. If ``rg`` and ``cov_matrix`` are both
-        not None, :math:`r_g` values from ``cov_matrix`` take precedence.
+        covariance matrix. If `rg` is ``None`` and `cov_matrix` is ``None``, :math:`r_g` 
+        is assumed to be 0 between traits. If `rg` and `cov_matrix` are both
+        not None, :math:`r_g` values from `cov_matrix` take precedence.
     cov_matrix : :class:`numpy.ndarray`, optional
         Covariance matrix for traits, **unscaled by :math:`M`**, the number of SNPs. 
-        Overrides ``h2`` and ``rg`` even when ``h2`` or ``rg`` are not ``None``.
+        Overrides `h2` and `rg` even when `h2` or `rg` are not ``None``.
     seed : :obj:`int`, optional
-        Seed for random number generator. If ``seed=None``, seed is set randomly.
+        Seed for random number generator. If `seed` is ``None``, `seed` is set randomly.
     
     Returns
     -------
@@ -257,7 +261,7 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
     rg : :obj:`float` or :obj:`int`
         Genetic correlation between traits.
     seed : :obj:`int`, optional
-        Seed for random number generator. If ``seed=None``, ``seed`` is set randomly.
+        Seed for random number generator. If `seed` is ``None``, `seed` is set randomly.
     
     Warning
     -------
@@ -330,7 +334,7 @@ def create_cov_matrix(h2, rg):
            [0.09899495, 0.22045408, 0.2       , 0.34641016],
            [0.        , 0.06363961, 0.34641016, 0.6       ]])
     
-    The diagonal corresponds directly to ``h2``, the list of h2 values for all traits.
+    The diagonal corresponds directly to `h2`, the list of h2 values for all traits.
     In the upper triangular matrix, excluding the diagonal, the entry :math:`(a, b)`, 
     where :math:`a` and :math:`b` are in :math:`{1,2,3,4}`, is the genetic covariance 
     (:math:`\rho_g`) between traits :math:`a` and :math:`b`. 
@@ -368,8 +372,11 @@ def create_cov_matrix(h2, rg):
            h2=nullable(oneof(float,
                              int,
                              list)),
-           popstrat=nullable(expr_int32))
-def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None):
+           popstrat=nullable(oneof(expr_int32,
+                                   expr_float64)),
+           popstrat_var=nullable(oneof(float,
+                                       int)))
+def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=None):
     """Calculates phenotypes by multiplying genotypes and betas.
     
     Parameters
@@ -385,23 +392,30 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None):
         ``None`` if running annotation-informed model.
     popstrat : :class:`.Expression`, optional
         Column field containing population stratification term.
+    popstrat_var : :obj:`float` or :obj:`int`
+        Variance of population stratification term.
         
     Returns
     -------
     :class:`.MatrixTable`
         :class:`.MatrixTable` with simulated phenotype as column field.
     """
+    assert popstrat_var is None or (popstrat_var >= 0), 'popstrat_var must be non-negative'
     tid = ''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase, k=5)) # "temporary id" -- random string to identify temporary intermediate fields generated by this method
     mt = annotate_all(mt=mt,
                       row_exprs={'beta_'+tid:beta},
+                      col_exprs={} if popstrat is None else {'popstrat_'+tid:popstrat},
                       entry_exprs={'gt_'+tid:genotype})
     mt = normalize_genotypes(mt['gt_'+tid])
-    if mt['beta_'+tid].dtype == dtype('array<float64>'):
+    if mt['beta_'+tid].dtype == dtype('array<float64>'): #if >1 traits
         mt = mt.annotate_cols(y_no_noise = hl.agg.array_agg(lambda beta: hl.agg.sum(beta*mt['norm_gt']),mt['beta_'+tid]))
         mt = mt.annotate_cols(y = mt.y_no_noise + hl.literal(h2).map(lambda x: hl.rand_norm(0,hl.sqrt(1-x))))
     else:
         mt = mt.annotate_cols(y_no_noise = hl.agg.sum(mt['beta_'+tid] * mt['norm_gt']))
         mt = mt.annotate_cols(y = mt.y_no_noise + hl.rand_norm(0, hl.sqrt(1-h2)))
+    if popstrat is not None:
+        var_factor = 1 if popstrat_var is None else (popstrat_var**(1/2))/mt.aggregate_cols(hl.agg.stats(mt['popstrat_'+tid])).stdev
+        mt = mt.annotate_cols(y_w_popstrat = mt.y + mt['popstrat_'+tid]*var_factor)
     mt = _clean_fields(mt, tid)
     return mt
     
@@ -431,7 +445,7 @@ def normalize_genotypes(genotypes):
 @typecheck(mt=MatrixTable,
            str_expr=str)
 def _clean_fields(mt, str_expr):
-    """Removes fields with names that have ``str_expr`` in them.
+    """Removes fields with names that have `str_expr` in them.
     
     Parameters
     ----------
@@ -467,7 +481,7 @@ def annotate_all(mt,row_exprs={},col_exprs={},entry_exprs={},global_exprs={}):
                    float))
 def ascertainment_bias(mt,y,P):
     """Adds ascertainment bias to a binary phenotype such that it was sample 
-    prevalence of ``P`` = cases/(cases+controls).
+    prevalence of `P` = cases/(cases+controls).
     
     Parameters
     ----------
@@ -517,8 +531,8 @@ def ascertainment_bias(mt,y,P):
                    float),
            exact=bool)
 def binarize(mt,y,K,exact=False):
-    """Binarize phenotype ``y`` such that it has prevalence ``K`` = cases/(cases+controls)
-    Uses inverse CDF of Gaussian to set binarization threshold when ``exact`` = False, 
+    """Binarize phenotype `y` such that it has prevalence `K` = cases/(cases+controls)
+    Uses inverse CDF of Gaussian to set binarization threshold when `exact` = False, 
     otherwise uses ranking to determine threshold.
     
     Parameters
@@ -530,12 +544,12 @@ def binarize(mt,y,K,exact=False):
     K : :obj:`int` or :obj:`float`
         Desired "population prevalence" of phenotype.
     exact : :obj:`bool`
-        Whether to get prevalence as close as possible to ``K`` (does not use inverse CDF)
+        Whether to get prevalence as close as possible to `K` (does not use inverse CDF)
     
     Returns
     -------
     :class:`.MatrixTable`
-        :class:`.MatrixTable` containing binary phenotype with prevalence of approx. ``K``
+        :class:`.MatrixTable` containing binary phenotype with prevalence of approx. `K`
     """
     if exact: 
         key = list(mt.col_key)
@@ -560,8 +574,8 @@ def binarize(mt,y,K,exact=False):
            str_expr=nullable(str),
            axis=str)
 def agg_fields(tb,coef_dict=None,str_expr=None,axis='rows'):
-    '''Aggregates by linear combination fields matching either keys in ``coef_dict``
-    or ``str_expr``. Outputs the aggregation in a :class:`.MatrixTable` or :class:`.Table` 
+    '''Aggregates by linear combination fields matching either keys in `coef_dict`
+    or `str_expr`. Outputs the aggregation in a :class:`.MatrixTable` or :class:`.Table` 
     as a new row field "agg_annot" or a new column field "agg_cov".
     
     Parameters
@@ -600,17 +614,17 @@ def agg_fields(tb,coef_dict=None,str_expr=None,axis='rows'):
            ref_coef_dict=nullable(dict),
            axis=str)
 def get_coef_dict(tb, str_expr=None, ref_coef_dict=None,axis='rows'):
-    '''Gets either col or row fields matching ``str_expr`` and take intersection 
+    '''Gets either col or row fields matching `str_expr` and take intersection 
     with keys in coefficient reference dict.
     
     Parameters
     ----------
     tb : :class:`.MatrixTable` or :class:`.Table`
-        :class:`.MatrixTable` or :class:`.Table` containing row (or col) for ``coef_dict``.
+        :class:`.MatrixTable` or :class:`.Table` containing row (or col) for `coef_dict`.
     str_expr : :obj:`str`, optional
         String expression pattern to match against row (or col) fields. If left
         unspecified, the intersection of field names is only between existing 
-        row (or col) fields in ``mt`` and keys of ``ref_coef_dict``.
+        row (or col) fields in `mt` and keys of `ref_coef_dict`.
     ref_coef_dict : :obj:`dict`, optional
         Reference coefficient dictionary with keys that are row (or col) field 
         names from which to subset. If not included, coefficients are assumed to be 1.
@@ -621,7 +635,7 @@ def get_coef_dict(tb, str_expr=None, ref_coef_dict=None,axis='rows'):
     -------
     coef_dict : :obj:`dict`
         Coefficients to multiply each field. The coefficients are specified by 
-        ``coef_dict`` value, the row (or col) field name is specified by ``coef_dict`` key. 
+        `coef_dict` value, the row (or col) field name is specified by `coef_dict` key. 
     '''
     assert (str_expr != None or ref_coef_dict != None), "str_expr and ref_coef_dict cannot both be None"
     assert axis is 'rows' or axis is 'cols', "axis must be 'rows' or 'cols'"
