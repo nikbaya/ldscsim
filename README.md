@@ -49,7 +49,7 @@ Row key: ['rsid']
 ### Infinitesimal Model
 Simulate a phenotype under the infinitesimal model with heritability = 0.1
 
-```python
+```
 >>> sim = simulate_phenotypes(mt=mt,genotype=mt.gt,h2=0.1)
 >>> sim.describe()
 ----------------------------------------
@@ -137,7 +137,7 @@ Compared to the previous simulation, the main changes are that `beta`,`y_no_nois
 Each field of arrays is indexed by trait. For instance, `mt.y_no_noise[0]` is the `y_no_noise` field for the first trait and `mt.y[0]` is the `y` field corresponding to the first trait, and `mt.y_no_noise[1]` is the `y_no_noise` field for the second trait and `mt.y[1]` is the `y` field corresponding to the second trait. The same rule applied for `mt.beta[0]` and `mt.beta[1]`.
 
 To check the heritabilities and genetic correlations between traits:
-```python
+```
 >>> hl.eval(sim.ldscsim.h2) # the expected h2 values passed as parameters
 [0.3, 0.4]
 >>> [sim.aggregate_cols(hl.agg.stats(sim.y_no_noise[x])).stdev**2 for x in range(2)] # calculating observed h2
@@ -174,7 +174,7 @@ Row key: ['rsid']
 ----------------------------------------
 ```
 This produces a similar MatrixTable to the previous simulation. However, all array fields have three elements rather than two.
-```python
+```
 >>> sim.cols().show()
 +-----------+---------------------------------+---------------------------------+
 | s         | y_no_noise                      | y                               |
@@ -227,7 +227,7 @@ Row key: ['rsid']
 
 Simulate two correlated phenotypes with heritabilities 0.8 and 0.9, genetic correlation of 0.5, and the following probabilities of SNPs being causal: probability a SNP is causal for both traits = 0.3, probability SNP is causal for trait 1 but not trait 2 = 0.1, probability SNP is causal for trait 2 but not trait 1 = 0.2. Expected proportion of SNPs causal for trait 1: 0.1 + 0.3 = 0.4, expected proportion of SNPs causal for trait 2: 0.1 + 0.2 = 0.3
 
-```python
+```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.8, 0.9], pi=[0.3, 0.1, 0.2], rg =0.5)
 ```
 
@@ -236,7 +236,7 @@ Simulate two correlated phenotypes with heritabilities 0.8 and 0.9, genetic corr
 
 Assume for this example we have the following MatrixTable `mt`:
 
-```python
+```
 >>> mt.describe()
 ----------------------------------------
 Global fields:
