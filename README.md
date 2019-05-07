@@ -47,7 +47,7 @@ Row key: ['rsid']
 * `mt.gt` : Genotypes of individuals
 
 ### Infinitesimal Model
-Simulate a phenotype under the infinitesimal model with heritability = 0.1
+#### Simulate a phenotype under the infinitesimal model with heritability = 0.1
 
 ```
 >>> sim = simulate_phenotypes(mt=mt,genotype=mt.gt,h2=0.1)
@@ -85,7 +85,7 @@ To check heritability of simulated trait:
 0.09413353719961155 
 ```
 
-Simulate two phenotypes under the infinitesimal model with heritabilities 0.3 and 0.4 and genetic correlation of 0.6
+#### Simulate two phenotypes under the infinitesimal model with heritabilities 0.3 and 0.4 and genetic correlation of 0.6
 
 ```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.3, 0.4], rg=0.6)
@@ -144,7 +144,7 @@ To check the heritabilities and genetic correlations between traits:
 [0.30562739116200704, 0.43268586014716076]
 ```
 
-Simulate three phenotypes under the infinitesimal model with heritabilities 0.1, 0.2, 0.7 and the following genetic correlations: trait 1 & trait 2 = 0.8, trait 1 & trait 3 = 0.5, trait 2 & trait 3 = 0.4
+#### Simulate three phenotypes under the infinitesimal model with heritabilities 0.1, 0.2, 0.7 and the following genetic correlations: trait 1 & trait 2 = 0.8, trait 1 & trait 3 = 0.5, trait 2 & trait 3 = 0.4
 
 ```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.1, 0.2, 0.7], rg=[0.8, 0.5, 0.4])
@@ -195,7 +195,7 @@ This produces a similar MatrixTable to the previous simulation. However, all arr
 ```
 
 ### Spike & Slab Model
-Simulate a phenotype with heritability = 0.1 and probability of a SNP being causal = 0.01
+#### Simulate a phenotype with heritability = 0.1 and probability of a SNP being causal = 0.01
 
 ```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=0.1, pi=0.01)
@@ -225,7 +225,8 @@ Row key: ['rsid']
 ----------------------------------------
 ```
 
-Simulate two correlated phenotypes with heritabilities 0.8 and 0.9, genetic correlation of 0.5, and the following probabilities of SNPs being causal: probability a SNP is causal for both traits = 0.3, probability SNP is causal for trait 1 but not trait 2 = 0.1, probability SNP is causal for trait 2 but not trait 1 = 0.2. Expected proportion of SNPs causal for trait 1: 0.1 + 0.3 = 0.4, expected proportion of SNPs causal for trait 2: 0.1 + 0.2 = 0.3
+#### Simulate two correlated spike & slab phenotypes
+Phenotypes have heritabilities 0.8 and 0.9, genetic correlation of 0.5, and the following probabilities of SNPs being causal: probability a SNP is causal for both traits = 0.3, probability SNP is causal for trait 1 but not trait 2 = 0.1, probability SNP is causal for trait 2 but not trait 1 = 0.2. Expected proportion of SNPs causal for trait 1: 0.1 + 0.3 = 0.4, expected proportion of SNPs causal for trait 2: 0.1 + 0.2 = 0.3
 
 ```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.8, 0.9], pi=[0.3, 0.1, 0.2], rg =0.5)
