@@ -214,7 +214,12 @@ This produces a similar MatrixTable to the previous simulation. However, all arr
 ```
 
 ### Spike & Slab Model
-#### Simulate a phenotype with heritability = 0.1 and probability of a SNP being causal = 0.01
+#### Simulate a single spike & slab phenotype
+Simulation specifications:
+* Single trait
+* Spike & slab
+* Heritability = 0.1 
+* Probability of a SNP being causal (`pi`) = 0.01
 
 ```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=0.1, pi=0.01)
@@ -245,38 +250,96 @@ Row key: ['rsid']
 ```
 
 #### Simulate two correlated spike & slab phenotypes
-Phenotypes have heritabilities 0.8 and 0.9, genetic correlation of 0.5, and the following probabilities of SNPs being causal: probability a SNP is causal for both traits = 0.3, probability SNP is causal for trait 1 but not trait 2 = 0.1, probability SNP is causal for trait 2 but not trait 1 = 0.2. Expected proportion of SNPs causal for trait 1: 0.1 + 0.3 = 0.4, expected proportion of SNPs causal for trait 2: 0.1 + 0.2 = 0.3
+Simulation specifications:
+* Two traits
+* Spike & slab
+* Trait 1 heritability = 0.8
+* Trait 2 heritability = 0.9
+* Genetic correlation = 0.5
+* Probability a SNP is causal for both traits = 0.3
+* Probability SNP is causal for trait 1 but not trait 2 = 0.1
+* Probability SNP is causal for trait 2 but not trait 1 = 0.2 
 
 ```
 >>> sim = simulate_phenotypes(mt=mt, genotype=mt.gt, h2=[0.8, 0.9], pi=[0.3, 0.1, 0.2], rg =0.5)
 ```
 
 ### Annotation-Informed Model
-[see method `make_betas()` docstring for more information]
-
-Assume for this example we have the following MatrixTable `mt`:
+Assume for this example we begin with the original MatrixTable shown above but we add new fields that represent annotations:
 
 ```
->>> mt.describe()
+>>> mt1 = mt.annotate_rows(a1 = hl.rand_bool(p=0.01), 
+                          a2 = hl.rand_bool(p=0.05),
+                          a3 = hl.rand_norm())
+>>> mt1.describe()
 ----------------------------------------
 Global fields:
     None
 ----------------------------------------
 Column fields:
-    's': str 
+    's': str
 ----------------------------------------
 Row fields:
-    'rsid': str 
-    
+    'rsid': str
+    'a1': bool
+    'a2': bool
+    'a3': float64
 ----------------------------------------
 Entry fields:
-    'gt': int32 
+    'gt': int32
 ----------------------------------------
 Column key: ['s']
 Row key: ['rsid']
 ----------------------------------------
 ```
-* `mt.a1`,`mt.a2`,`mt.a3` : Annotations we want to use for an annotation-informed model
+* `a1`,`a2`,`a3` : Annotations we want to use for an annotation-informed model
+
+We can aggregate those annotations as a linear combination using default coefficients to scale each field before summing across fields.
+
+```
+>>> mt2 = agg_fields(tb=mt1, str_expr='a', axis='rows') # aggregate across row fields using default coefficients (all equal to 1)
+Assuming coef = 1 for all annotations
+Fields and associated coefficients used in annot aggregation: {'a1': 1, 'a2': 1, 'a3': 1}
+```
+We can also use a dictionary to specify coefficients to use for each row field when aggregating as a linear combination.
+```
+>>> coef_dict = {'a1':0.3, 'a2':0.1, 'a3':0.4} # coefficients to multiply each field by before summing
+>>> mt2 = agg_fields(tb=mt1, coef_dict=coef_dict, axis='rows') # aggregate across row fields, specifying coefficients
+Fields and associated coefficients used in annot aggregation: {'a1': 0.3, 'a2': 0.1, 'a3': 0.4}
+```
+In either case, the output MatrixTable will be:
+```
+>>> mt2.describe()
+----------------------------------------
+Global fields:
+    None
+----------------------------------------
+Column fields:
+    's': str
+----------------------------------------
+Row fields:
+    'rsid': str
+    'a1': bool
+    'a2': bool
+    'a3': float64
+    'agg_annot': float64
+----------------------------------------
+Entry fields:
+    'gt': int32
+----------------------------------------
+Column key: ['s']
+Row key: ['rsid']
+----------------------------------------
+```
+Note that when using `agg_fields()`, specifying `str_expr` but not `coef_dict` can unintentionally include fields in the aggregation with names that match `str_expr`. For instance, if we try using `mt2` as our input MatrixTable:
+```
+>>> mt3 = agg_fields(tb=mt2, str_expr='a', axis='rows')
+Assuming coef = 1 for all annotations
+Fields and associated coefficients used in annot aggregation: {'a1': 1, 'a2': 1, 'a3': 1, 'agg_annot': 1}
+```
+Because our `str_expr` matches the field `agg_annot` it also includes it in the fields to be aggregated. To avoid this, either rename the desired target fields to have a more unique pattern to search for, or drop `agg_annot`.
+
+*See docstring of* `make_betas()` *for more information*
 
 ### Population Stratification
 [*In development*]
