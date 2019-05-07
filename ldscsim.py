@@ -155,16 +155,18 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
     assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
     assert (all(x >= 0 and x <= 1 for x in pi)), 'pi values for spike & slab must be between 0 and 1'
     assert (rg==[None] or all(x >= 0 and x <= 1 for x in rg)), 'rg values must be between 0 and 1 or None'
-    if annot is not None: #annotation-informed
+    if annot is not None: #multi-trait annotation-informed
+        assert rg == [None], 'Correlated traits not supported for annotation-informed model'
+        h2 = h2 if type(h2) is list else [h2]
         M = mt.count_rows()
-        annot_sum = mt.aggregate_rows(hl.agg.sum(annot))
-        mt = mt.annotate_rows(**{'beta': hl.rand_norm(0, hl.sqrt(annot*h2[0]/annot_sum))}) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
+        annot_var = mt.aggregate_rows(hl.agg.stats(annot)).stdev**2
+        mt = mt.annotate_rows(beta = hl.literal(h2).map(lambda x: hl.rand_norm(0, hl.sqrt(annot*x/(annot_var*M))))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
         return mt
-    elif len(h2)>1 and pi==[1]: #multi-trait infinitesimal
+    elif len(h2)>1 and pi==[1]: #multi-trait correlated infinitesimal
         return multitrait_inf(mt=mt,h2=h2,rg=rg)
-    elif len(h2)==2 and len(pi)>1: #two-trait spike & slab
+    elif len(h2)==2 and len(pi)>1: #two trait correlated spike & slab
         return multitrait_ss(mt=mt,h2=h2,rg=0 if rg is [None] else rg[0],pi=pi)
-    elif len(h2)==1 and len(pi)==1: #one-trait infinitesimal/spike & slab
+    elif len(h2)==1 and len(pi)==1: #single trait infinitesimal/spike & slab
         M = mt.count_rows()
         return mt.annotate_rows(beta = hl.rand_bool(pi[0])*hl.rand_norm(0,hl.sqrt(h2[0]/(M*pi[0]))))
     else:
@@ -369,9 +371,9 @@ def create_cov_matrix(h2, rg):
            genotype=expr_int32,
            beta=oneof(expr_float64,
                       expr_array(expr_float64)),
-           h2=nullable(oneof(float,
-                             int,
-                             list)),
+           h2=oneof(float,
+                    int,
+                    list),
            popstrat=nullable(oneof(expr_int32,
                                    expr_float64)),
            popstrat_var=nullable(oneof(float,
@@ -408,6 +410,7 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=Non
                       entry_exprs={'gt_'+tid:genotype})
     mt = normalize_genotypes(mt['gt_'+tid])
     if mt['beta_'+tid].dtype == dtype('array<float64>'): #if >1 traits
+        h2 = h2 if type(h2) is list else [h2]
         mt = mt.annotate_cols(y_no_noise = hl.agg.array_agg(lambda beta: hl.agg.sum(beta*mt['norm_gt']),mt['beta_'+tid]))
         mt = mt.annotate_cols(y = mt.y_no_noise + hl.literal(h2).map(lambda x: hl.rand_norm(0,hl.sqrt(1-x))))
     else:
