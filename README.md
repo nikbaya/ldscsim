@@ -1,5 +1,5 @@
 # ldscsim
-`ldscsim` is a module to simulate phenotypes. It is designed to test [`ldsc`](https://github.com/bulik/ldsc), but is extensible to general use.
+`ldscsim` is a module to simulate phenotypes. It is designed to test [LD score regression](https://github.com/bulik/ldsc), but is extensible to general use.
 <br>
 
 ## Model descriptions
