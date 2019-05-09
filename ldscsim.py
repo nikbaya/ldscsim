@@ -381,10 +381,10 @@ def create_cov_matrix(h2, rg):
     assert n_rg is exp_n_rg, f'The number of rg values given is {n_rg}, expected {exp_n_rg}'
     rg = np.asarray(rg)
     cov_matrix = np.zeros(shape=[n_h2,n_h2])
-    cov_matrix[np.triu_indices(n_h2, k=1)] = rg**2 #sets upper diagonal with covariances
-    h2_diag = np.diag(h2)
-    cov_matrix = (np.matmul(np.matmul(cov_matrix,h2_diag).T,h2_diag)**(1/2))
-    cov_matrix += cov_matrix.T + h2_diag
+    cov_matrix[np.triu_indices(n_h2, k=1)] = rg #sets upper diagonal with covariances
+    h2_diag = np.diag(h2)**(1/2)
+    cov_matrix = np.matmul(np.matmul(cov_matrix,h2_diag).T,h2_diag)
+    cov_matrix += cov_matrix.T + h2_diag**2
     return cov_matrix
 
 @typecheck(mt=MatrixTable,
