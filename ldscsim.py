@@ -299,22 +299,31 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
 @typecheck(h2=list,
            rg=list)
 def create_cov_matrix(h2, rg):
-    """Creates covariance matrix for simulating correlated betas.
+    """Creates covariance matrix for simulating correlated SNP effects.
     
-    Parameters
-    ----------
-    h2 : :obj:`list`
-        :math:`h^2` values for traits. :math:`h^2` values in list should be 
-        ordered by their order in the diagonal of the covariance array, reading
-        from top left to bottom right.
-    rg : :obj:`list`        
-        :math:`r_g` values for traits. :math:`r_g` values should be ordered in 
-        the order they appear in the upper triangle of the covariance matrix, 
-        from left to right, top to bottom.
-        
+    Given a list of heritabilities and a list of genetic correlations, :func:`.create_cov_matrix`
+    constructs the covariance matrix necessary to draw from a multivariate normal
+    distribution to generate correlated SNP effects.
+    
     Examples
     --------
-    Suppose we have four traits with the following heritabilities (:math:`h^2`): 0.1, 0.3, 0.2, 0.6.
+    Suppose we have three traits enumerated as trait 1, trait 2, and trait 3.
+    Each trait has a heritability: :math:`h^2_1`,:math:`h^2_2`,:math:`h^2_3`
+    Traits have the following genetic correlations: :math:`r_{g, 12}`,:math:`r_{g, 13}`, :math:`r_{g, 23}`
+    The ordering of indices in the subscript is arbitrary (e.g. :math:`r_{g, 12}` = :math:`r_{g, 21}`)
+    as both values are the genetic correlation between trait 1 and trait 2.
+    We can calculate :math:`\rho_{g,ab}`, the genetic covariance between two traits :math:`a` and :math:`b`,
+    as :math:`\rho_{g,ab}=r_{g,ab}\sqrt{h^2_a\cdot h^2_b}`. The covariance matrix is thus:
+        
+    .. math::
+        
+        \begin{pmatrix}
+        h^2_1                            & r_{g, 12}\sqrt{h^2_1\cdot h^2_2}  & r_{g, 13}\sqrt{h^2_1\cdot h^2_3} \\
+        r_{g, 12}\sqrt{h^2_1\cdot h^2_2} & h^2_2                             & r_{g, 23}\sqrt{h^2_2\cdot h^2_3} \\
+        r_{g, 13}\sqrt{h^2_1\cdot h^2_3} & r_{g, 23}*\sqrt{h^2_2\cdot h^2_3} & h^2_3
+        \end{pmatrix}
+    
+    Now suppose we have four traits with the following heritabilities (:math:`h^2`): 0.1, 0.3, 0.2, 0.6.
     That is, trait 1 has an :math:`h^2` of 0.1, trait 2 has an :math:`h^2` of 0.3 and so on.
     Suppose the genetic correlations (:math:`r_g`) between traits are the following:
     trait 1 & trait 2 :math:`r_g` = 0.4
@@ -340,7 +349,7 @@ def create_cov_matrix(h2, rg):
     In the upper triangular matrix, excluding the diagonal, the entry :math:`(a, b)`, 
     where :math:`a` and :math:`b` are in :math:`{1,2,3,4}`, is the genetic covariance 
     (:math:`\rho_g`) between traits :math:`a` and :math:`b`. 
-    Genetic covariance is calculated as :math:`\rho_g= r_g*\sqrt(h^2_a*h^2_b)`
+    Genetic covariance is calculated as :math:`\rho_g= r_g*\sqrt{h^2_a*h^2_b}`
     where :math:`r_g` is the genetic correlation between traits :math:`a` and 
     :math:`b` and :math:`h^2_a` and :math:`h^2_b` are heritabilities corresponding
     to traits :math:`a` and :math:`b`.
@@ -349,6 +358,17 @@ def create_cov_matrix(h2, rg):
     -----
     Covariance matrix is not scaled by number of SNPs.
     
+    Parameters
+    ----------
+    h2 : :obj:`list`
+        :math:`h^2` values for traits. :math:`h^2` values in list should be 
+        ordered by their order in the diagonal of the covariance array, reading
+        from top left to bottom right.
+    rg : :obj:`list`        
+        :math:`r_g` values for traits. :math:`r_g` values should be ordered in 
+        the order they appear in the upper triangle of the covariance matrix, 
+        from left to right, top to bottom.
+        
     Returns
     -------
     :class:`numpy.ndarray`
