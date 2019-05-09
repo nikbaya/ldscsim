@@ -154,7 +154,7 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
     rg = [rg] if type(rg) is not list else rg
     assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
     assert (all(x >= 0 and x <= 1 for x in pi)), 'pi values for spike & slab must be between 0 and 1'
-    assert (rg==[None] or all(x >= 0 and x <= 1 for x in rg)), 'rg values must be between 0 and 1 or None'
+    assert (rg==[None] or all(x >= -1 and x <= 1 for x in rg)), 'rg values must be between -1 and 1 or None'
     if annot is not None: #multi-trait annotation-informed
         assert rg == [None], 'Correlated traits not supported for annotation-informed model'
         h2 = h2 if type(h2) is list else [h2]
