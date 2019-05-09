@@ -225,10 +225,10 @@ def multitrait_inf(mt, h2=None, rg=None, cov_matrix=None, seed=None):
             print(f'Assuming rg=0 for all {n_phens} traits')
             rg = [0]*int((n_phens**2-n_phens)/2)
         assert (all(x >= -1 and x<= 1 for x in rg)), 'rg values must be between 0 and 1'
-        cov_matrix = create_cov_matrix(h2, rg)
-    cov_matrix = (1/M)*cov_matrix
+        cov, h2, rg = create_cov_matrix(h2, rg)
+    cov = (1/M)*cov
     randstate = np.random.RandomState(int(seed)) #seed random state for replicability
-    betas = randstate.multivariate_normal(mean=np.zeros(n_phens),cov=cov_matrix,size=[M,])
+    betas = randstate.multivariate_normal(mean=np.zeros(n_phens),cov=cov,size=[M,])
     df = pd.DataFrame([0]*M,columns=['beta'])
     tb = hl.Table.from_pandas(df)
     tb = tb.add_index().key_by('idx')
@@ -296,9 +296,12 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
     mt = mt.annotate_rows(beta = tb[mt.row_idx]['beta'])
     return mt
 
-@typecheck(h2=list,
-           rg=list)
-def create_cov_matrix(h2, rg):
+@typecheck(h2=oneof(list,
+                    np.ndarray),
+           rg=oneof(list,
+                    np.ndarray),
+           psd_rg=bool)
+def create_cov_matrix(h2, rg, psd_rg=False):
     """Creates covariance matrix for simulating correlated SNP effects.
     
     Given a list of heritabilities and a list of genetic correlations, :func:`.create_cov_matrix`
@@ -360,11 +363,11 @@ def create_cov_matrix(h2, rg):
     
     Parameters
     ----------
-    h2 : :obj:`list`
+    h2 : :obj:`list` or:class:`numpy.ndarray`
         :math:`h^2` values for traits. :math:`h^2` values in list should be 
         ordered by their order in the diagonal of the covariance array, reading
         from top left to bottom right.
-    rg : :obj:`list`        
+    rg : :obj:`list` or :class:`numpy.ndarray`
         :math:`r_g` values for traits. :math:`r_g` values should be ordered in 
         the order they appear in the upper triangle of the covariance matrix, 
         from left to right, top to bottom.
@@ -374,19 +377,46 @@ def create_cov_matrix(h2, rg):
     :class:`numpy.ndarray`
     """
     assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
-    assert (all(x >= -1 and x<= 1 for x in rg)), 'rg values must be between 0 and 1'
+    assert (all(x >= -1 and x<= 1 for x in rg)), 'rg values must be between -1 and 1'
     n_rg = len(rg)
     n_h2 = len(h2)
     exp_n_rg = int((n_h2**2-n_h2)/2) #expected number of rg values, given number of traits
-    assert n_rg is exp_n_rg, f'The number of rg values given is {n_rg}, expected {exp_n_rg}'
+    assert n_rg == exp_n_rg, f'The number of rg values given is {n_rg}, expected {exp_n_rg}'
     rg = np.asarray(rg)
-    cov_matrix = np.zeros(shape=[n_h2,n_h2])
-    cov_matrix[np.triu_indices(n_h2, k=1)] = rg #sets upper diagonal with covariances
-    h2_diag = np.diag(h2)**(1/2)
-    cov_matrix = np.matmul(np.matmul(cov_matrix,h2_diag).T,h2_diag)
-    cov_matrix += cov_matrix.T + h2_diag**2
-    return cov_matrix
+    cor = np.zeros(shape=(n_h2,n_h2))
+    cor[np.triu_indices(n=n_h2,k=1)] =rg
+    cor += cor.T
+    cor[np.diag_indices(n=n_h2)] = 1
+    if psd_rg:
+        cor0 = cor
+        cor = nearPSD(cor)
+        idx = np.triu_indices(n=n_h2,k=1)
+        maxlines = 50
+        msg = ['adjusting rg values to make covariance matrix positive semidefinite']
+        msg +=([(f'{cor0[idx[0][i],idx[1][i]]} -> {cor[idx[0][i],idx[1][i]]}') for i in range(n_rg)] if n_rg <= maxlines
+                 else [(f'{cor0[idx[0][i],idx[1][i]]} -> {cor[idx[0][i],idx[1][i]]}') for i in range(maxlines)] +
+                 [f'[ printed first {maxlines} rg changes -- omitted {n_rg-maxlines} ]'])
+        print('\n'.join(msg))
+        rg = [cor[idx[0][i],idx[1][i]] for i in range(n_rg)]
+    S = np.diag(h2)**(1/2)
+    cov_matrix = np.asarray(S@cor@S) #covariance matrix decomposition
+    if not np.all(np.linalg.eigvals(cov_matrix) >=  0) and not psd_rg: #check positive semidefinite
+        print('covariance matrix is not positive semidefinite.')
+        cov_matrix, h2, rg = create_cov_matrix(h2, rg, psd_rg=True)
+    return cov_matrix, h2, rg
 
+@typecheck(A=np.ndarray)
+def nearPSD(A):
+   n = A.shape[0]
+   eigval, eigvec = np.linalg.eig(A)
+   val = np.matrix(np.maximum(eigval,0))
+   vec = np.matrix(eigvec)
+   T = 1/(np.multiply(vec,vec) * val.T)
+   T = np.matrix(np.sqrt(np.diag(np.array(T).reshape((n)) )))
+   B = T * vec * np.diag(np.array(np.sqrt(val)).reshape((n)))
+   out = np.real(B*B.T)
+   return out
+      
 @typecheck(mt=MatrixTable,
            genotype=expr_int32,
            beta=oneof(expr_float64,
