@@ -2,7 +2,7 @@
 `ldscsim` is a module to simulate phenotypes. It is designed to test [LD score regression](https://github.com/bulik/ldsc), but is extensible to general use.
 <br>
 
-## Model description
+## 1) Model description
 ### Phenotype model
 y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub>&beta;<sub>j</sub> + &varepsilon;<sub>i</sub>
 * y<sub>i</sub> : Phenotype of individual i
@@ -13,7 +13,7 @@ y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub>&beta;<sub>j</sub> + &varepsilon
 The phenotype of each individual is calculating the dot product of that individual's genotypes with the SNP effects and then adding random environmental noise.
 <br>
 <br>
-*Note: Genotypes as described above are normalized such that genotypes at a given SNP have mean=0 and std=1*
+*Note: Genotypes as described above are normalized such that genotypes at a given SNP have mean=0, var=1.*
 <br>
 <br>
 Relevant functions: 
@@ -93,7 +93,10 @@ Relevant functions:
 &Beta; = (&beta;<sup>1</sup>,...,&beta;<sup>k</sup>)<sup>T</sup>
 <br>
 &Beta; ~ N<sub>k</sub>(0, &Omega;)
-* &Omega; : Variance-covarance matrix
+* &beta;<sup>k</sup> : SNP effect sizes for trait k
+* k : Number of correlated traits
+* &Omega; : Variance-covarance matrix, k x k
+
 
 SNP effects are drawn from a multivariate normal distribution with mean=0 and variance-covariance matrix defined by heritability and genetic correlation values. If the specified heritability and genetic correlation values result in a covariance matrix that is not positive semi-definite the framework will adjust the genetic correlation values to make the covariance matrix positive semi-definite.
 <br>
@@ -145,7 +148,7 @@ Relevant functions:
 * `ascertainment_bias()`
 
 
-## Getting started
+## 2) Examples
 `simulate_phenotypes()` is the main method wrapping other methods in the package. However, all methods are self-contained and thus can be run independently. 
 
 Assume for the examples of the infinitesimal and spike & slab models that we have the following MatrixTable `mt`:
