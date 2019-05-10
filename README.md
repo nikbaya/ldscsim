@@ -211,7 +211,11 @@ Column key: ['s']
 Row key: ['rsid']
 ----------------------------------------
 ```
-In `sim`, `y` is the simulated phenotype with approximate distribution N(mean=0,var=1). `y_no_noise` is the simulated phenotype without noise added and is approximately distributed as Normal(mean=0,var=`h2`). `beta` are the SNP effects for the simulated trait and have the approximate distribution N(mean=0,var=`h2`/M), where M is the number of SNPs. `norm_gt` is the normalized genotype used to calculate the phenotype. Genotypes are normalized such that at a given SNP, the distribution of genotypes across individuals is approximately N(mean=0,var=1). In the global variables, `mt.ldscsim.h2` is the `h2` parameter passed to the simulation.
+* `sim.beta` are the SNP effects for the simulated trait and have the approximate distribution N(0,`h2`/M), where M is the number of SNPs.
+* `sim.y_no_noise` is equivalent to the dot product of the genotype matrix by the vector of SNP effects and is modeled to be distributed as N(0,`h2`). 
+* `sim.y` is the phenotype after adding random environmental noise. Random environmental noise is scaled to be distributed as N(0,1-`h2`). The `y_no_noise` and the random environmental noise are independent, therefore their sum will have variance equal to the sum of their variances: `h2` + (1-`h2`) = 1. Both phenotype and the random noise have mean equal to zero, therefore the mean of `y` is also 0. Thus, `y` is modeled to have distribution N(0,1), just like any real phenotype that has been standardized. 
+* `sim.norm_gt` is the normalized genotype used to calculate the phenotype. Genotypes are normalized such that at a given SNP, the distribution of genotypes across individuals is approximately N(0,1). 
+* `sim.ldscsim.h2` is the `h2` parameter passed to the simulation.
 
 To check heritability of simulated trait:
 ```
@@ -256,7 +260,7 @@ Column key: ['s']
 Row key: ['rsid']
 ----------------------------------------
 ```
-Compared to the previous simulation, the main changes are that `beta`,`y_no_noise`, and `y` are all arrays because they hold values for all traits.
+Compared to the previous simulation, the main changes are that `beta`,`y_no_noise`, and `y` are all arrays because they hold values for multiple traits.
 ```
 >>> sim.cols().show()
 +-----------+-----------------------+-----------------------+
