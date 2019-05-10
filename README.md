@@ -90,7 +90,10 @@ Relevant functions:
 
 ### Models for Correlated Traits
 #### Multi-Trait Infinitesimal Model
-&Beta; ~ N(0, &Omega;)
+&Beta; = (&beta;<sup>1</sup>,...,&beta;<sup>k</sup>)<sup>T</sup>
+<br>
+&Beta; ~ N<sub>k</sub>(0, &Omega;)
+* &Omega; : Variance-covarance matrix
 
 SNP effects are drawn from a multivariate normal distribution with mean=0 and variance-covariance matrix defined by heritability and genetic correlation values. If the specified heritability and genetic correlation values result in a covariance matrix that is not positive semi-definite the framework will adjust the genetic correlation values to make the covariance matrix positive semi-definite.
 <br>
@@ -105,7 +108,9 @@ Relevant functions:
 #### Two-Trait Spike & Slab
 (&beta;<sub>j</sub><sup>A<sub>0</sub></sup>, &beta;<sub>j</sub><sup>B<sub>0</sub></sup>) ~ N(0, &Omega;<sub>SS</sub>)
 <br>
-&Omega;<sub>SS</sub> = [[<sup>1</sup>/<sub>(p<sub>TT</sub>+p<sub>TF</sub>)</sub>, <sup>r<sub>g</sub></sup>/<sub>p<sub>TT</sub></sub>],[<sup>r<sub>g</sub></sup>/<sub>p<sub>TT</sub></sub>, <sup>1</sup>/<sub>(p<sub>TT</sub>+p<sub>FT</sub>)</sub>]]
+&Omega;<sub>SS</sub> = [[<sup>1</sup>/<sub>(p<sub>TT</sub>+p<sub>TF</sub>)</sub>, <sup>r<sub>g</sub></sup>/<sub>p<sub>TT</sub></sub>],
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[<sup>r<sub>g</sub></sup>/<sub>p<sub>TT</sub></sub>, <sup>1</sup>/<sub>(p<sub>TT</sub>+p<sub>FT</sub>)</sub>]]
 <br>
 &beta;<sub>j</sub><sup>A</sup> = &beta;<sub>j</sub><sup>A<sub>0</sub></sup> and &beta;<sub>j</sub><sup>B</sup> = &beta;<sub>j</sub><sup>B<sub>0</sub></sup>, w/ probability p<sub>TT</sub>
 <br>
