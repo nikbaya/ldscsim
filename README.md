@@ -11,41 +11,113 @@ y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub>&beta;<sub>j</sub> + &varepsilon
 * &varepsilon;<sub>i</sub> : Environmental noise for individual i
 
 The phenotype of each individual is calculating the dot product of that individual's genotypes with the SNP effects and then adding random environmental noise.
+<br>
+<br>
+*Note: Genotypes as described above are normalized such that genotypes at a given SNP have mean=0 and std=1*
+<br>
+<br>
+Relevant functions: 
+* `simulate_phenotypes()`
+* `calculate_phenotypes()`
 
-### Model for SNP effects
+### Models for SNP effects
 #### Infinitesimal Model
 &beta; ~ N(0, h<sup>2</sup>/M)
 * h<sup>2</sup> : SNP-based heritability of phenotype
 * M : Number of SNPs in simulation
 
 All SNP effects are drawn from a normal distribution with mean=0, variance= h2/M, where h2 is the desired heritability of the simulated trait and M is the number of SNPs in the genotype matrix given by the user. 
+<br>
+<br>
+Relevant functions: 
+* `make_betas()`
+* `multitrait_inf()`
 
 #### Spike & Slab
-&beta; = N(0, h<sup>2</sup>/(&pi;&middot;M), w/ probability &pi;
+&beta; = N(0, h<sup>2</sup>/(&pi;M), w/ probability &pi;
 <br>
 &beta; = 0, otherwise
 * h<sup>2</sup> : SNP-based heritability of phenotype
 * M : Number of SNPs in simulation
 * &pi; : Probability of a SNP being causal
 
-SNPs are assigned to be causal with probability &pi;. If a SNP is causal, its effect size is drawn from the normal distribution with mean=0 and variance=h2/(&pi;&middot;M). If a SNP is not causal it has an effect size of 0.
+SNPs are assigned to be causal with probability &pi;. If a SNP is causal, its effect size is drawn from the normal distribution with mean=0 and variance=h2/(&pi;M). If a SNP is not causal it has an effect size of 0.
+<br>
+<br>
+Relevant functions: 
+* `make_betas()`
+* `multitrait_ss()`
 
 #### Annotation-Informed Betas
-&beta;<sub>j</sub> = N(0, a<sub>j</sub>&middot;h<sup>2</sup>/(Var(a<sub>j</sub>)&middot;M)
+&beta;<sub>j</sub> = N(0, a<sub>j</sub>h<sup>2</sup>/(Var(a<sub>j</sub>)&middot;M)
 <br>
 a<sub>j</sub> = &sum;<sub>C</sub> &tau;<sub>C</sub>a<sub>Cj</sub>
+* h<sup>2</sup> : SNP-based heritability of phenotype
+* a<sub>j</sub> : Annotation for SNP j summed across categories
+* &tau;<sub>C</sub> : Heritability contributed by annotation category C
+* a<sub>jC</sub> : Annotation for SNP j in category C
+* M : Number of SNPs in simulation
 
-* **Spike & Slab**: SNPs have probability `pi` of being causal. If causal, the SNP effect is drawn from a normal distribution with variance `h2/(M*pi)`. If not causal, the SNP effect is zero.
-* **Annotation-Informed**: The effect for SNP `j` are drawn from a normal distribution with mean=0, variance=`a[j]`, where `a[j]` is the relative heritability contributed by SNP `j` and `a` is a vector of the relative heritability contributed by each SNP. `a[j]` is calculated by taking the linear combination across all annotations of SNP `j`, scaling each annotation by coefficients (often written as tau) specified by the user, or assumed to be 1.
-
-#### Models for correlated multi-trait/two-trait SNP effects
-* **Infinitesimal** (multi-trait): SNP effects are drawn from a multivariate normal distribution with mean=0 and variance-covariance matrix defined by heritability and genetic correlation values.
-* **Spike & Slab** (two-trait): SNP effects are drawn from bivariate normal distribution and then set to be causal or non-causal based on parameters defining probability of being causal.
-
-
-#### Modeling population stratification
-After calculating the matrix product of genotypes and SNP effects, it is possible to add population stratification. Population stratification is a term added to the phenotype, which is the linear combination of covariates scaled by coefficients provided by the user (if not provided, coefficients are assumed to be 1).
+The effect for SNP j are drawn from a normal distribution with mean=0, variance=a[j]&middot;h2/(Var(a[j])&middot;M), where a[j] is the relative heritability contributed by SNP j and a is a vector of the relative heritability contributed by each SNP. a[j] is calculated by taking the linear combination across all annotation categories for SNP j, scaling each annotation by coefficient &tau;<sub>C</sub>, the heritability contributed by category C.
 <br>
+<br>
+Relevant functions: 
+* `make_betas()`
+* `multitrait_inf()`
+* `agg_fields()`
+* `get_coef_dict()`
+
+### Model for Population Stratification
+y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub>&beta;<sub>j</sub> + &varepsilon;<sub>i</sub> + s<sub>i</sub>
+<br>
+s<sub>i</sub> = &sum;<sub>k</sub> &sigma;<sub>k</sub>s<sub>ik</sub>
+* y<sub>i</sub> : Phenotype of individual i
+* X<sub>ij</sub> : Genotype of individual i at SNP j
+* &beta;<sub>j</sub> : Effect size of SNP j
+* &varepsilon;<sub>i</sub> : Environmental noise for individual i
+* s<sub>i</sub> : Population stratification term for individual i
+* &sigma;<sub>k</sub> : Square root of variance contributed by covariate k
+* s<sub>ik</sub> : Covariate k for individual i
+
+After calculating the matrix product of genotypes and SNP effects, it is possible to add population stratification. Population stratification is a term added to the phenotype, which is the linear combination of covariates scaled by coefficients provided by the user.
+<br>
+<br>
+Relevant functions: 
+* `calculate_phenotypes()`
+* `agg_fields()`
+* `get_coef_dict()`
+
+
+### Models for Correlated Traits
+#### Multi-Trait Infinitesimal Model
+SNP effects are drawn from a multivariate normal distribution with mean=0 and variance-covariance matrix defined by heritability and genetic correlation values. If the specified heritability and genetic correlation values result in a covariance matrix that is not positive semi-definite (likely when number of simulated traits >3) the framework will adjust the genetic correlation values to make the covariance matrix positive semi-definite.
+<br>
+<br>
+Relevant functions: 
+* `make_betas()`
+* `multitrait_inf()`
+* `get_cov_matrix()`
+* `nearPSD()`
+
+
+#### Two-Trait Spike & Slab
+SNP effects are drawn from bivariate normal distribution and then set to be causal or non-causal based on parameters defining probability of being causal.
+<br>
+*Note: Correlated two-trait spike & slab model is from page 30 of the supplement of [Turley et al. 2018](https://static-content.springer.com/esm/art%3A10.1038%2Fs41588-017-0009-4/MediaObjects/41588_2017_9_MOESM1_ESM.pdf)*
+<br>
+<br>
+Relevant functions: 
+* `make_betas()`
+* `multitrait_ss()`
+
+### Models for Ascertainment Bias
+[see docstrings for more information]
+<br>
+<br>
+Relevant functions: 
+* `binarize()`
+* `ascertainment_bias()`
+
 
 ## Getting started
 `simulate_phenotypes()` is the main method wrapping other methods in the package. However, all methods are self-contained and thus can be run independently. 
