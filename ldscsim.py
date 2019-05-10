@@ -280,8 +280,6 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
         :math:`p_{TT}` is the proportion of SNPs that are causal for both traits, 
         :math:`p_{TF}` is the proportion of SNPs that are causal for trait 1 but not trait 2,
         :math:`p_{FT}` is the proportion of SNPs that are causal for trait 2 but not trait 1.
-        :math:`p_{FF}` is the remaining proportion of SNPs and is the proportion
-        of SNPs that are not causal for both traits.
     rg : :obj:`float` or :obj:`int`
         Genetic correlation between traits.
     seed : :obj:`int`, optional
@@ -290,18 +288,29 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
     Warning
     -------
     May give inaccurate results if chosen parameters make the covariance matrix 
-    not positive semi-definite.
+    not positive semi-definite. Covariance matrix is likely to not be positive
+    semi-definite when :mat:`p_{TT}` is small and rg is large.
     
     Returns
     -------
     mt : :class:`.MatrixTable`
         :class:`.MatrixTable` with simulated SNP effects as a row field of arrays.
     """
+    assert sum(pi)<=1, "probabilities of being causal must sum to be less than 1"
     seed = seed if seed is not None else int(str(Env.next_seed())[:8])
     ptt, ptf, pft, pff = pi[0], pi[1], pi[2], 1-sum(pi)
     cov_matrix = np.asarray([[1/(ptt+ptf), rg/ptt],[rg/ptt,1/(ptt+pft)]])
-    M = mt.count_cols()
+    M = mt.count_rows()
     randstate = np.random.RandomState(int(seed)) #seed random state for replicability
+    if np.any(np.linalg.eigvals(cov_matrix) < 0):
+        print('adjusting parameters to make covariance matrix positive semidefinite')
+        rg0, ptt0 = rg, ptt
+        while np.any(np.linalg.eigvals(cov_matrix) < 0): #check positive semidefinite
+            rg = round(0.99*rg,6)
+            ptt = round(ptt+(pff)*0.001,6)
+            cov_matrix = np.asarray([[1/(ptt+ptf), rg/ptt],[rg/ptt,1/(ptt+pft)]])
+        pff0, pff = pff, 1-sum([ptt, ptf, pft])
+        print(f'rg: {rg0} -> {rg}\nptt: {ptt0} -> {ptt}\npff: {pff0} -> {pff}')
     beta = randstate.multivariate_normal(mean=np.zeros(2),cov=cov_matrix,size=[int(M),])
     zeros = np.zeros(shape=int(M)).T
     beta_matrix = np.stack((np.asarray([zeros,zeros]).T,np.asarray([zeros,beta[:,1]]).T,
@@ -416,7 +425,7 @@ def get_cov_matrix(h2, rg, psd_rg=False):
     cor[np.diag_indices(n=n_h2)] = 1
     if psd_rg:
         cor0 = cor
-        cor = nearPSD(cor)
+        cor = _nearpsd(cor)
         idx = np.triu_indices(n=n_h2,k=1)
         maxlines = 50
         msg = ['adjusting rg values to make covariance matrix positive semidefinite']
@@ -434,7 +443,7 @@ def get_cov_matrix(h2, rg, psd_rg=False):
     return cov_matrix, rg
 
 @typecheck(A=np.ndarray)
-def nearPSD(A):
+def _nearpsd(A):
    n = A.shape[0]
    eigval, eigvec = np.linalg.eig(A)
    val = np.matrix(np.maximum(eigval,0))
@@ -444,7 +453,8 @@ def nearPSD(A):
    B = T * vec * np.diag(np.array(np.sqrt(val)).reshape((n)))
    out = np.real(B*B.T)
    return out
-      
+
+
 @typecheck(mt=MatrixTable,
            genotype=oneof(expr_int32,
                           expr_float64,
