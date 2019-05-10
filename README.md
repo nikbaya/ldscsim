@@ -105,7 +105,7 @@ Relevant functions:
 * `make_betas()`
 * `multitrait_inf()`
 * `get_cov_matrix()`
-* `nearPSD()`
+* `_nearpsd()`
 
 
 #### Two-Trait Spike & Slab
