@@ -120,17 +120,18 @@ Relevant functions:
 &beta;<sub>j</sub><sup>A</sup> = &beta;<sub>j</sub><sup>A<sub>0</sub></sup> and &beta;<sub>j</sub><sup>B</sup> = 0, w/ probability p<sub>TF</sub>
 <br>
 &beta;<sub>j</sub><sup>A</sup> = 0 and &beta;<sub>j</sub><sup>B</sup> = &beta;<sub>j</sub><sup>B<sub>0</sub></sup>, w/ probability p<sub>FT</sub>
-* &beta;<sub>j</sub><sup>A<sub>0</sub></sup>: Initial effect size of SNP j for trait A
-* &beta;<sub>j</sub><sup>B<sub>0</sub></sup>: Initial effect size of SNP j for trait B
+* &beta;<sub>j</sub><sup>A<sub>0</sub></sup> : Initial effect size of SNP j for trait A
+* &beta;<sub>j</sub><sup>B<sub>0</sub></sup> : Initial effect size of SNP j for trait B
 * &Omega;<sub>SS</sub> : Spike & slab variance-covariance matrix
 * p<sub>TT</sub> : Probability of a SNP being causal for both traits
 * p<sub>TF</sub> : Probability of a SNP being causal for trait A but not trait B
 * p<sub>FT</sub> : Probability of a SNP being causal for trait B but not trait A
 * r<sub>g</sub> : Genetic correlation between traits A and B
-* &beta;<sub>j</sub><sup>A</sup>: Final effect size of SNP j for trait A
-* &beta;<sub>j</sub><sup>B</sup>: Final effect size of SNP j for trait B
+* &beta;<sub>j</sub><sup>A</sup> : Final effect size of SNP j for trait A
+* &beta;<sub>j</sub><sup>B</sup> : Final effect size of SNP j for trait B
 
 SNP effects are drawn from bivariate normal distribution and then set to be causal or non-causal based on parameters defining probability of being causal.
+<br>
 <br>
 *Note: Correlated two-trait spike & slab model is from page 30 of the supplement of [Turley et al. 2018](https://static-content.springer.com/esm/art%3A10.1038%2Fs41588-017-0009-4/MediaObjects/41588_2017_9_MOESM1_ESM.pdf)*
 <br>
