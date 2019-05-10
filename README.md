@@ -4,15 +4,37 @@
 
 ## Model description
 ### Phenotype model
-y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub> &beta;<sub>j</sub> + &varepsilon;<sub>i</sub>
+y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub>&beta;<sub>j</sub> + &varepsilon;<sub>i</sub>
 * y<sub>i</sub> : Phenotype of individual i
 * X<sub>ij</sub> : Genotype of individual i at SNP j
 * &beta;<sub>j</sub> : Effect size of SNP j
 * &varepsilon;<sub>i</sub> : Environmental noise for individual i
 
+The phenotype of each individual is calculating the dot product of that individual's genotypes with the SNP effects and then adding random environmental noise.
+
 ### Model for SNP effects
 #### Infinitesimal Model
-All SNP effects are drawn from a normal distribution with mean=0, variance=`h2/M`, where `h2` is the desired heritability of the simulated trait and `M` is the number of SNPs in the genotype matrix given given by the user. 
+&beta; ~ N(0, h<sup>2</sup>/M)
+* h<sup>2</sup> : SNP-based heritability of phenotype
+* M : Number of SNPs in simulation
+
+All SNP effects are drawn from a normal distribution with mean=0, variance= h2/M, where h2 is the desired heritability of the simulated trait and M is the number of SNPs in the genotype matrix given by the user. 
+
+#### Spike & Slab
+&beta; = N(0, h<sup>2</sup>/(&pi;&middot;M), w/ probability &pi;
+<br>
+&beta; = 0, otherwise
+* h<sup>2</sup> : SNP-based heritability of phenotype
+* M : Number of SNPs in simulation
+* &pi; : Probability of a SNP being causal
+
+SNPs are assigned to be causal with probability &pi;. If a SNP is causal, its effect size is drawn from the normal distribution with mean=0 and variance=h2/(&pi;&middot;M). If a SNP is not causal it has an effect size of 0.
+
+#### Annotation-Informed Betas
+&beta;<sub>j</sub> = N(0, a<sub>j</sub>&middot;h<sup>2</sup>/(Var(a<sub>j</sub>)&middot;M)
+<br>
+a<sub>j</sub> = &sum;<sub>C</sub> &tau;<sub>C</sub>a<sub>Cj</sub>
+
 * **Spike & Slab**: SNPs have probability `pi` of being causal. If causal, the SNP effect is drawn from a normal distribution with variance `h2/(M*pi)`. If not causal, the SNP effect is zero.
 * **Annotation-Informed**: The effect for SNP `j` are drawn from a normal distribution with mean=0, variance=`a[j]`, where `a[j]` is the relative heritability contributed by SNP `j` and `a` is a vector of the relative heritability contributed by each SNP. `a[j]` is calculated by taking the linear combination across all annotations of SNP `j`, scaling each annotation by coefficients (often written as tau) specified by the user, or assumed to be 1.
 
