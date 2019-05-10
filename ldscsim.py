@@ -96,11 +96,11 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
                       row_exprs={} if annot is None else {'annot_'+tid:annot},
                       col_exprs={} if popstrat is None else {'popstrat_'+tid:popstrat},
                       entry_exprs={'gt_'+tid:genotype.n_alt_alleles() if genotype.dtype is dtype('call') else genotype})
-    mt, rg = make_betas(mt=mt, 
-                        h2=h2, 
-                        pi=1 if pi is None else pi, 
-                        annot=None if annot is None else mt['annot_'+tid],
-                        rg=rg)
+    mt, pi, rg = make_betas(mt=mt, 
+                                h2=h2, 
+                                pi=pi, 
+                                annot=None if annot is None else mt['annot_'+tid],
+                                rg=rg)
     mt = calculate_phenotypes(mt=mt, 
                               genotype=mt['gt_'+tid], 
                               beta=mt['beta'],
@@ -109,8 +109,8 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
                               popstrat_var=popstrat_var)
     mt = annotate_all(mt=mt,
                       global_exprs={'ldscsim':hl.struct(**{**{'h2':h2[0] if len(h2) is 1 else h2},
-                                                           **({} if pi is None else {'pi':pi}),
-                                                           **({} if rg is [None] else {'rg':rg[0] if len(rg) is 1 else rg}),
+                                                           **({} if pi == [None] else {'pi':pi}),
+                                                           **({} if rg == [None] else {'rg':rg[0] if len(rg) is 1 else rg}),
                                                            **({} if annot is None else {'is_annot_inf':True}),
                                                            **({} if popstrat is None else {'is_popstrat_inf':True}),
                                                            **({} if popstrat_var is None else {'popstrat_var':popstrat_var})
@@ -123,17 +123,17 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
                      int,
                      list,
                      np.ndarray)),
-           pi=oneof(float,
-                    int,
-                    list,
-                    np.ndarray),
+           pi=nullable(oneof(float,
+                             int,
+                             list,
+                             np.ndarray)),
            annot=nullable(oneof(expr_float64,
                                 expr_int32)),
            rg=nullable(oneof(float,
                              int,
                              list,
                              np.ndarray)))
-def make_betas(mt, h2, pi=1, annot=None, rg=None):
+def make_betas(mt, h2, pi=None, annot=None, rg=None):
     """Generates betas under different models. 
        
     Simulates betas (SNP effects) under the infinitesimal, spike & slab, or 
@@ -147,7 +147,7 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
         model or covariates as column fields if adding population stratification.
     h2 : :obj:`float` or :obj:`int` or :obj:`list` or :class:`numpy.ndarray`
         SNP-based heritability of simulated trait(s). 
-    pi : :obj:`float` or :obj:`int` or :obj:`list` or :class:`numpy.ndarray`
+    pi : :obj:`float` or :obj:`int` or :obj:`list` or :class:`numpy.ndarray`, optional
         Probability of SNP being causal when simulating under the spike & slab 
         model. If doing two-trait spike & slab `pi` is a list of probabilities for
         overlapping causal SNPs (see docstring of :func:`.multitrait_ss`)
@@ -169,7 +169,7 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
     pi = pi.tolist() if type(pi) is np.ndarray else ([pi] if type(pi) is not list else pi)
     rg = rg.tolist() if type(rg) is np.ndarray else ([rg] if type(rg) is not list else rg)
     assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
-    assert (all(x >= 0 and x <= 1 for x in pi)), 'pi values for spike & slab must be between 0 and 1'
+    assert (pi is not [None]) or all(x >= 0 and x <= 1 for x in pi) , 'pi values for spike & slab must be between 0 and 1'
     assert (rg==[None] or all(x >= -1 and x <= 1 for x in rg)), 'rg values must be between -1 and 1 or None'
     if annot is not None: #multi-trait annotation-informed
         assert rg == [None], 'Correlated traits not supported for annotation-informed model'
@@ -177,16 +177,17 @@ def make_betas(mt, h2, pi=1, annot=None, rg=None):
         M = mt.count_rows()
         annot_var = mt.aggregate_rows(hl.agg.stats(annot)).stdev**2
         mt = mt.annotate_rows(beta = hl.literal(h2).map(lambda x: hl.rand_norm(0, hl.sqrt(annot*x/(annot_var*M))))) # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
-    elif len(h2)>1 and pi==[1]: #multi-trait correlated infinitesimal
+    elif len(h2)>1 and (pi==[None] or pi==[1]): #multi-trait correlated infinitesimal
         mt, rg = multitrait_inf(mt=mt,h2=h2,rg=rg)
     elif len(h2)==2 and len(pi)>1: #two trait correlated spike & slab
-        mt = multitrait_ss(mt=mt,h2=h2,rg=0 if rg is [None] else rg[0],pi=pi)
+        mt, pi, rg = multitrait_ss(mt=mt,h2=h2,rg=0 if rg is [None] else rg[0],pi=pi)
     elif len(h2)==1 and len(pi)==1: #single trait infinitesimal/spike & slab
         M = mt.count_rows()
-        mt = mt.annotate_rows(beta = hl.rand_bool(pi[0])*hl.rand_norm(0,hl.sqrt(h2[0]/(M*pi[0]))))
+        pi_temp = 1 if pi == [None] else pi[0]
+        mt = mt.annotate_rows(beta = hl.rand_bool(pi_temp)*hl.rand_norm(0,hl.sqrt(h2[0]/(M*pi_temp))))
     else:
         raise ValueError('Insufficient parameters')
-    return mt, rg
+    return mt, pi, rg
         
 @typecheck(mt=MatrixTable, 
            h2=nullable(oneof(float,
@@ -311,11 +312,12 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
             cov_matrix = np.asarray([[1/(ptt+ptf), rg/ptt],[rg/ptt,1/(ptt+pft)]])
         pff0, pff = pff, 1-sum([ptt, ptf, pft])
         print(f'rg: {rg0} -> {rg}\nptt: {ptt0} -> {ptt}\npff: {pff0} -> {pff}')
+        pi = [ptt, ptf, pft, pff]
     beta = randstate.multivariate_normal(mean=np.zeros(2),cov=cov_matrix,size=[int(M),])
     zeros = np.zeros(shape=int(M)).T
-    beta_matrix = np.stack((np.asarray([zeros,zeros]).T,np.asarray([zeros,beta[:,1]]).T,
-                            np.asarray([beta[:,0],zeros]).T,beta),axis=1)
-    idx = np.random.choice([0,1,2,3],p=[pff,pft, ptf, ptt],size=int(M))
+    beta_matrix = np.stack((beta, np.asarray([beta[:,0],zeros]).T,
+                            np.asarray([zeros,zeros]).T,np.asarray([zeros,beta[:,1]]).T),axis=1)
+    idx = np.random.choice([0,1,2,3],p=pi,size=int(M))
     betas = beta_matrix[range(int(M)),idx,:]
     betas[:,0] *= (h2[0]/M)**(1/2)
     betas[:,1] *= (h2[1]/M)**(1/2)
@@ -325,7 +327,7 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
     tb = tb.annotate(beta = hl.literal(betas.tolist())[hl.int32(tb.idx)])
     mt = mt.add_row_index()
     mt = mt.annotate_rows(beta = tb[mt.row_idx]['beta'])
-    return mt
+    return mt, pi, rg
 
 @typecheck(h2=oneof(list,
                     np.ndarray),
