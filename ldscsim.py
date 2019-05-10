@@ -42,7 +42,8 @@ import scipy.stats as stats
                      np.ndarray)),
            pi=nullable(oneof(float,
                              int,
-                             list)),
+                             list,
+                             np.ndarray)),
            rg=nullable(oneof(float,
                              int,
                              list,
@@ -71,7 +72,7 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
         simulation.
     h2 : :obj:`float` or :obj:`int` or :obj:`list` or :class:`numpy.ndarray`
         SNP-based heritability of simulated trait.
-    pi : :obj:`float` or :obj:`int` or or :class:`numpy.ndarray`, optional
+    pi : :obj:`float` or :obj:`int` or :obj:`list` or :class:`numpy.ndarray`, optional
         Probability of SNP being causal when simulating under the spike & slab 
         model.
     rg : :obj:`float` or :obj:`int` or :obj:`list` or :class:`numpy.ndarray`, optional
@@ -109,7 +110,7 @@ def simulate_phenotypes(mt, genotype, h2, pi=None, rg=None, annot=None, popstrat
     mt = annotate_all(mt=mt,
                       global_exprs={'ldscsim':hl.struct(**{**{'h2':h2[0] if len(h2) is 1 else h2},
                                                            **({} if pi is None else {'pi':pi}),
-                                                           **({} if rg == [None] else {'rg':rg[0] if len(rg) is 1 else rg}),
+                                                           **({} if rg is [None] else {'rg':rg[0] if len(rg) is 1 else rg}),
                                                            **({} if annot is None else {'is_annot_inf':True}),
                                                            **({} if popstrat is None else {'is_popstrat_inf':True}),
                                                            **({} if popstrat_var is None else {'popstrat_var':popstrat_var})
@@ -403,13 +404,14 @@ def get_cov_matrix(h2, rg, psd_rg=False):
     """
     assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
     assert (all(x >= -1 and x<= 1 for x in rg)), 'rg values must be between -1 and 1'
+    rg = rg if type(rg) is list else rg.tolist()
     n_rg = len(rg)
     n_h2 = len(h2)
     exp_n_rg = int((n_h2**2-n_h2)/2) #expected number of rg values, given number of traits
     assert n_rg == exp_n_rg, f'The number of rg values given is {n_rg}, expected {exp_n_rg}'
     rg = np.asarray(rg)
     cor = np.zeros(shape=(n_h2,n_h2))
-    cor[np.triu_indices(n=n_h2,k=1)] = rg
+    cor[np.triu_indices(n=n_h2,k=1)] = rg #set upper triangle of correlation matrix to be rg
     cor += cor.T
     cor[np.diag_indices(n=n_h2)] = 1
     if psd_rg:
@@ -428,6 +430,7 @@ def get_cov_matrix(h2, rg, psd_rg=False):
     if not np.all(np.linalg.eigvals(cov_matrix) >=  0) and not psd_rg: #check positive semidefinite
         print('covariance matrix is not positive semidefinite.')
         cov_matrix, rg = get_cov_matrix(h2, rg, psd_rg=True)
+    rg = rg.tolist()
     return cov_matrix, rg
 
 @typecheck(A=np.ndarray)
