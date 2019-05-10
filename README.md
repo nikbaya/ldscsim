@@ -4,11 +4,11 @@
 
 ## 1) Model description
 ### Phenotype model
-y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub>&beta;<sub>j</sub> + &varepsilon;<sub>i</sub>
+y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub>&beta;<sub>j</sub> + &epsilon;<sub>i</sub>
 * y<sub>i</sub> : Phenotype of individual i
 * X<sub>ij</sub> : Genotype of individual i at SNP j
 * &beta;<sub>j</sub> : Effect size of SNP j
-* &varepsilon;<sub>i</sub> : Environmental noise for individual i
+* &epsilon;<sub>i</sub> : Environmental noise for individual i
 
 The phenotype of each individual is calculating the dot product of that individual's genotypes with the SNP effects and then adding random environmental noise.
 <br>
