@@ -415,12 +415,11 @@ def get_cov_matrix(h2, rg, psd_rg=False):
     """
     assert (all(x >= 0 and x <= 1 for x in h2)), 'h2 values must be between 0 and 1'
     assert (all(x >= -1 and x<= 1 for x in rg)), 'rg values must be between -1 and 1'
-    rg = rg if type(rg) is list else rg.tolist()
+    rg = np.asarray(rg) if type(rg) is list else rg
     n_rg = len(rg)
     n_h2 = len(h2)
     exp_n_rg = int((n_h2**2-n_h2)/2) #expected number of rg values, given number of traits
     assert n_rg == exp_n_rg, f'The number of rg values given is {n_rg}, expected {exp_n_rg}'
-    rg = np.asarray(rg)
     cor = np.zeros(shape=(n_h2,n_h2))
     cor[np.triu_indices(n=n_h2,k=1)] = rg #set upper triangle of correlation matrix to be rg
     cor += cor.T
@@ -435,12 +434,13 @@ def get_cov_matrix(h2, rg, psd_rg=False):
                  else [(f'{cor0[idx[0][i],idx[1][i]]} -> {cor[idx[0][i],idx[1][i]]}') for i in range(maxlines)] +
                  [f'[ printed first {maxlines} rg changes -- omitted {n_rg-maxlines} ]'])
         print('\n'.join(msg))
-        rg = cor[idx].tolist()
+        rg = np.ravel(cor[idx])
     S = np.diag(h2)**(1/2)
     cov_matrix = np.asarray(S@cor@S) #covariance matrix decomposition
     if not np.all(np.linalg.eigvals(cov_matrix) >=  0) and not psd_rg: #check positive semidefinite
         print('covariance matrix is not positive semidefinite.')
         cov_matrix, rg = get_cov_matrix(h2, rg, psd_rg=True)
+        rg = np.asarray(rg)
     rg = rg.tolist()
     return cov_matrix, rg
 
