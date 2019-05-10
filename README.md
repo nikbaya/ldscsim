@@ -4,13 +4,14 @@
 
 ## Model description
 ### Phenotype model
- <img align="center" border="0" alt="y_i = \sum_j X_{ij}\beta_j + \epsilon_i" width="244.8" height="74.7" src="http://www.sciweavers.org/tex2img.php?eq=y_i%20%3D%20%5Csum_j%20X_%7Bij%7D%5Cbeta_j%20%2B%20%5Cepsilon_i&bc=White&fc=Black&im=gif&fs=60&ff=modern&edit=0"> <img src="http://www.sciweavers.org/tex2img.php?eq=-&bc=White&fc=White&im=gif&fs=24&ff=modern&edit=0" align="center" border="0" alt="-" width="100" height="28" /> <img src="http://www.sciweavers.org/tex2img.php?eq=%5Cbegin%7Bflushleft%7D%0Ay_i%20%3A%20%5Ctext%7BPhenotype%20of%20individual%20%7D%20i%0A%5C%5C%0AX_%7Bij%7D%20%3A%20%5Ctext%7BGenotype%20of%20individual%20%24i%24%20at%20SNP%20%24j%24%7D%0A%5C%5C%0A%5Cbeta_j%20%3A%20%5Ctext%7BEffect%20size%20of%20SNP%20%24j%24%7D%0A%5C%5C%0A%5Cepsilon_i%20%3A%20%5Ctext%7BEnvironmental%20noise%20for%20individual%20%24i%24%7D%0A%5Cend%7Bflushleft%7D&bc=White&fc=Black&im=gif&fs=24&ff=modern&edit=0" align="center" border="0" alt="\begin{flushleft}y_i : \text{Phenotype of individual } i\\X_{ij} : \text{Genotype of individual $i$ at SNP $j$}\\\beta_j : \text{Effect size of SNP $j$}\\\epsilon_i : \text{Environmental noise for individual $i$}\end{flushleft}" width="277" height="74.7" /> 
-
+y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub> &beta;<sub>j</sub> + &varepsilon;<sub>i</sub>
+* y<sub>i</sub> : Phenotype of individual i
+* X<sub>ij</sub> : Genotype of individual i at SNP j
+* &beta;<sub>j</sub> : Effect size of SNP j
+* &varepsilon;<sub>i</sub> : Environmental noise for individual i
 
 ### Model for SNP effects
 #### Infinitesimal Model
-<img src="http://www.sciweavers.org/tex2img.php?eq=%5Cbeta%20%5Csim%20%20N%280%2Ch%5E2%2FM%29%20&bc=White&fc=Black&im=gif&fs=30&ff=modern&edit=0" align="center" border="0" alt="\beta \sim  N(0,h^2/M) " width="245" height="42.6" /> <img src="http://www.sciweavers.org/tex2img.php?eq=-&bc=White&fc=White&im=gif&fs=24&ff=modern&edit=0" align="center" border="0" alt="-" width="100" height="28" /> <img src="http://www.sciweavers.org/tex2img.php?eq=%5Cbegin%7Bflushleft%7D%0Ah%5E2%20%3A%20%5Ctext%7BSNP%20heritability%20of%20phenotype%7D%0A%5C%5C%0AM%20%3A%20%5Ctext%7BNumber%20of%20SNPs%7D%0A%5Cend%7Bflushleft%7D&bc=White&fc=Black&im=gif&fs=30&ff=modern&edit=0" align="center" border="0" alt="\begin{flushleft}h^2 : \text{SNP heritability of phenotype}\\M : \text{Number of SNPs}\end{flushleft}" width="291.1" height="42.6" />
-
 All SNP effects are drawn from a normal distribution with mean=0, variance=`h2/M`, where `h2` is the desired heritability of the simulated trait and `M` is the number of SNPs in the genotype matrix given given by the user. 
 * **Spike & Slab**: SNPs have probability `pi` of being causal. If causal, the SNP effect is drawn from a normal distribution with variance `h2/(M*pi)`. If not causal, the SNP effect is zero.
 * **Annotation-Informed**: The effect for SNP `j` are drawn from a normal distribution with mean=0, variance=`a[j]`, where `a[j]` is the relative heritability contributed by SNP `j` and `a` is a vector of the relative heritability contributed by each SNP. `a[j]` is calculated by taking the linear combination across all annotations of SNP `j`, scaling each annotation by coefficients (often written as tau) specified by the user, or assumed to be 1.
