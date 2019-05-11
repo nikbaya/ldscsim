@@ -34,7 +34,7 @@ Relevant functions:
 * `multitrait_inf()`
 
 #### Spike & Slab
-&beta; = N(0, h<sup>2</sup>/(&pi;M), w/ probability &pi;
+&beta; = N(0, h<sup>2</sup>/(&pi;M)), w/ probability &pi;
 <br>
 &beta; = 0, otherwise
 * h<sup>2</sup> : SNP-based heritability of phenotype
