@@ -61,26 +61,29 @@ def single_trait(mt, genotype, eps):
         except AssertionError:
             pass
         
-    try:
-        h2 = rand.uniform(size=(1))
-        rg = rand.uniform(size=(2))
-        sim = simulate_phenotypes(mt,genotype,h2=h2,rg=rg)
-
-    
     # Test functionality
+    # Trivial h2 values, ints vs. lists
     for h2 in [0,1, [0], [1]]:
         sim = simulate_phenotypes(mt, genotype, h2=h2)
         assert h2 == get_sim_h2(sim, 1)[0]
-        
+    
+    # Random h2 values, list vs. numpy array 
     for h2 in [rand.uniform().tolist(),
                rand.uniform()]:
         sim = simulate_phenotypes(mt, genotype, h2=h2)
         assert abs(h2 < get_sim_h2(sim)) < eps
-
+    
+    # Too many rg values relative to number of h2 values   
+    h2 = rand.uniform(size=(1))
+    rg = rand.uniform(low=-1,high=1,size=(2))
+    sim = simulate_phenotypes(mt,genotype,h2=h2,rg=rg)
+    
+    
     for h2 in [rand.uniform(size=2), rand.uniform(size=3), rand.uniform(size=10),
                rand.uniform(size=50), rand.uniform(size=100)]:
-        for rg in [None, [None], ]:
+        for rg in [None, [None]]:
             sim = simulate_phenotypes(mt,genotype,h2=h2,rg=rg)
+    
     
     sim = simulate_phenotypes(mt,genotype,h2=[0.1,0.3,0.43],rg=[0.3, 0.4, 0.1])
     
