@@ -1,3 +1,5 @@
+from hail.table import Table
+
 def locus_interval_expr(contig, start, end, includes_start, includes_end,
                         reference_genome, skip_invalid_intervals):
     if reference_genome:
