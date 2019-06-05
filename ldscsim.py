@@ -511,7 +511,8 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=Non
         mt = mt.annotate_cols(y = mt.y_no_noise + hl.rand_norm(0, hl.sqrt(1-h2[0])))
     if popstrat is not None:
         var_factor = 1 if popstrat_var is None else (popstrat_var**(1/2))/mt.aggregate_cols(hl.agg.stats(mt['popstrat_'+tid])).stdev
-        mt = mt.annotate_cols(y_w_popstrat = mt.y + mt['popstrat_'+tid]*var_factor)
+        mt = mt.rename({'y':'y_no_popstrat'})
+        mt = mt.annotate_cols(y = mt.y_no_popstrat + mt['popstrat_'+tid]*var_factor)
     mt = _clean_fields(mt, tid)
     return mt
     
