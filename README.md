@@ -1,8 +1,23 @@
 # ldscsim
 `ldscsim` is a module to simulate phenotypes. It is designed to test [LD score regression](https://github.com/bulik/ldsc), but is extensible to general use.
 <br>
+### Outline
+* **[Model descriptions](#model-descriptions)**
+    - [Phenotype model](#phenotype-model)
+    - [Models for SNP effects](#models-for-snp-effects)
+        * *[Infinitesimal Model](#infinitesimal-model)*
+        * *[Spike and Slab](#spike-and-slab)*
+        * *[Annotation-Informed Betas](#annotation-informed-betas)*
+    - [Model for Population Stratification](#model-for-population-stratification)
+    - [Models for Correlated Traits](#models-for-correlated-traits)
+        * *[Multi-Trait Infinitesimal Model](#multi-trait-infinitesimal-model)*
+        * *[Two-Trait Spike and Slab](#two-trait-spike-and-slab)*
+    - [Models for Ascertainment Bias](#models-for-ascertainment-bias)
+* **[Examples](#examples)**
+    
+<br>
 
-## 1) Model description
+## Model descriptions
 ### Phenotype model
 y<sub>i</sub> = &sum;<sub>j</sub> X<sub>ij</sub>&beta;<sub>j</sub> + &epsilon;<sub>i</sub>
 * y<sub>i</sub> : Phenotype of individual i
@@ -33,7 +48,7 @@ Relevant functions:
 * `make_betas()`
 * `multitrait_inf()`
 
-#### Spike & Slab
+#### Spike and Slab
 &beta; = N(0, h<sup>2</sup>/(&pi;M)), w/ probability &pi;
 <br>
 &beta; = 0, otherwise
@@ -108,7 +123,7 @@ Relevant functions:
 * `_nearpsd()`
 
 
-#### Two-Trait Spike & Slab
+#### Two-Trait Spike and Slab
 (&beta;<sub>j</sub><sup>A<sub>0</sub></sup>, &beta;<sub>j</sub><sup>B<sub>0</sub></sup>) ~ N(0, &Omega;<sub>SS</sub>)
 <br>
 &Omega;<sub>SS</sub> = [[<sup>1</sup>/<sub>(p<sub>TT</sub>+p<sub>TF</sub>)</sub>, <sup>r<sub>g</sub></sup>/<sub>p<sub>TT</sub></sub>],
@@ -149,7 +164,7 @@ Relevant functions:
 * `ascertainment_bias()`
 
 
-## 2) Examples
+## Examples
 `simulate_phenotypes()` is the main method wrapping other methods in the package. However, all methods are self-contained and thus can be run independently. 
 
 Assume for the examples of the infinitesimal and spike & slab models that we have the following MatrixTable `mt`:
