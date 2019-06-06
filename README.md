@@ -14,7 +14,15 @@
         * *[Two-Trait Spike and Slab](#two-trait-spike-and-slab)*
     - [Models for Ascertainment Bias](#models-for-ascertainment-bias)
 * **[Examples](#examples)**
-    
+    - [Infinitesimal Model](#infinitesimal-model)
+        * *[Simulate a phenotype under the infinitesimal model](#simulate-a-phenotype-under-the-infinitesimal-model)*
+        * *[Simulate two phenotypes under the infinitesimal model](#simulate-two-phenotypes-under-the-infinitesimal-model)*
+        * *[Simulate three phenotypes under the infinitesimal model](#simulate-three-phenotypes-under-the-infinitesimal-model)*
+    - [Spike and Slab Model](#spike-and-slab-model)
+        * *[Simulate a single spike and slab phenotype](#simulate-a-single-spike-and-slab-phenotype)*
+        * *[Simulate two correlated spike and slab phenotypes](#simulate-two-correlated-spike-and-slab-phenotypes)*
+    - [Annotation-Informed Model](#annotation-informed-model)
+    - [Population Stratification](#population-stratification)
 <br>
 
 ## Model descriptions
@@ -364,8 +372,8 @@ This produces a similar MatrixTable to the previous simulation. However, all arr
 +-----------+---------------------------------+---------------------------------+
 ```
 
-### Spike & Slab Model
-#### Simulate a single spike & slab phenotype
+### Spike and Slab Model
+#### Simulate a single spike and slab phenotype
 Simulation specifications:
 * Single trait
 * Spike & slab
@@ -400,7 +408,7 @@ Row key: ['rsid']
 ----------------------------------------
 ```
 
-#### Simulate two correlated spike & slab phenotypes
+#### Simulate two correlated spike and slab phenotypes
 Simulation specifications:
 * Two traits
 * Spike & slab
