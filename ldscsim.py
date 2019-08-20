@@ -8,13 +8,14 @@ Models for SNP effects:
     - Spike & slab (can simulate 2 correlated traits)
     - Annotation-informed
     
-Field aggregation tools for annotation-informed model and population stratification
-using many covariates.
-
-Changes from previous version:
-    - annotation-informed model takes only the field of aggregated annotations
-    - adding population stratification takes only the field of aggregated covariates 
-    - no header printed
+Features:
+   - Field aggregation tools for annotation-informed model and 
+     population stratification with many covariates.
+   - Automatic adjustment of genetic correlation parameters
+     to allow for the joint simulation of up to 100 randomly
+     correlated phenotypes.
+   - Methods for binarizing phenotypes to have a certain prevalence
+     and for adding ascertainment bias to binarized phenotypes.
 
 @author: nbaya
 """
