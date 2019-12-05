@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Basic version of ldscsim.
+Simulation framework for testing LDSC
 
 Models for SNP effects:
     - Infinitesimal (can simulate n correlated traits)
