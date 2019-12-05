@@ -528,8 +528,10 @@ def _nearpsd(A):
            popstrat=nullable(oneof(expr_int32,
                                    expr_float64)),
            popstrat_var=nullable(oneof(float,
-                                       int)))
-def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=None):
+                                       int)),
+           exact_h2=bool)
+def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=None,
+                         exact_h2=True):
     """Calculates phenotypes by multiplying genotypes and betas.
 
     Parameters
@@ -547,6 +549,11 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=Non
         Column field containing population stratification term.
     popstrat_var : :obj:`float` or :obj:`int`
         Variance of population stratification term.
+    exact_h2: :obj:`bool`
+        Whether to exactly simulate ratio of variance of genetic component of 
+        phenotype to variance of phenotype to be h2. If `False`, ratio will be
+        h2 in expectation. Observed h2 in the simulation will be close to 
+        expected h2 for large-scale simulations. If `False` simulation 
 
     Returns
     -------
@@ -564,17 +571,38 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=Non
                       row_exprs={'beta_'+tid: beta},
                       col_exprs={} if popstrat is None else {'popstrat_'+tid: popstrat},
                       entry_exprs={'gt_'+tid: genotype.n_alt_alleles() if genotype.dtype is dtype('call') else genotype})
+    mt = mt.filter_rows(hl.agg.stats(mt['gt_'+tid]).stdev>0)
     mt = normalize_genotypes(mt['gt_'+tid])
     if mt['beta_'+tid].dtype == dtype('array<float64>'):  # if >1 traits
-        mt = mt.annotate_cols(y_no_noise=hl.agg.array_agg(
-            lambda beta: hl.agg.sum(beta*mt['norm_gt']), mt['beta_'+tid]))
-        mt = mt.annotate_cols(
-            y=mt.y_no_noise + hl.literal(h2).map(lambda x: hl.rand_norm(0, hl.sqrt(1-x))))
+        if exact_h2:
+            pass # still working on this
+#            mt = mt.annotate_cols({'y_no_noise_'+tid: hl.agg.array_agg( #use tid because this is the unnormalized-for-h2 version of y_no_noise
+#                lambda beta: hl.agg.sum(beta*mt['norm_gt']), mt['beta_'+tid])})
+#            mt = mt.annotate_cols(y_no_noise=hl.agg.array_agg(
+#                lambda y_no_noise: y_no_noise/hl.agg.stats(y_no_noise).stdev, mt['y_no_noise_'+tid]))
+#            mt = mt.annotate_cols({'noise_'+tid: hl.literal(h2).map(lambda x: hl.rand_norm(0, hl.sqrt(1-x)))})
+#            mt = mt.annotate_cols(y=mt.y_no_noise +  hl.agg.array_agg(
+#                    lambda noise: noise/hl.agg.stats(y_no_noise)))
+#            mt = mt.annotate_cols(
+#                y=mt.y_no_noise + hl.literal(h2).map(lambda x: hl.rand_norm(0, hl.sqrt(1-x))))
+        else:
+            mt = mt.annotate_cols(y_no_noise=hl.agg.array_agg(
+                lambda beta: hl.agg.sum(beta*mt['norm_gt']), mt['beta_'+tid]))
+            mt = mt.annotate_cols(
+                y=mt.y_no_noise + hl.literal(h2).map(lambda x: hl.rand_norm(0, hl.sqrt(1-x))))
     else:
-        mt = mt.annotate_cols(y_no_noise=hl.agg.sum(
-            mt['beta_'+tid] * mt['norm_gt']))
-        mt = mt.annotate_cols(
-            y=mt.y_no_noise + hl.rand_norm(0, hl.sqrt(1-h2[0])))
+        if exact_h2:
+            mt = mt.annotate_cols(**{'y_no_noise_'+tid: hl.agg.sum(mt['beta_'+tid] * mt['norm_gt'])})
+            y_no_noise_stdev = mt.aggregate_cols(hl.agg.stats(mt['y_no_noise_'+tid]).stdev)
+            mt = mt.annotate_cols(y_no_noise = hl.sqrt(h2[0])*mt['y_no_noise_'+tid]/y_no_noise_stdev) #normalize genetic component of phenotype to have variance of exactly h2
+            mt = mt.annotate_cols(**{'noise_'+tid: hl.rand_norm(0, hl.sqrt(1-h2[0]))})
+            noise_stdev = mt.aggregate_cols(hl.agg.stats(mt['noise_'+tid]).stdev)
+            mt = mt.annotate_cols(noise = hl.sqrt(1-h2[0])*mt['noise_'+tid]/noise_stdev)
+            mt = mt.annotate_cols(y=mt.y_no_noise + hl.sqrt(1-h2[0])*mt['noise_'+tid]/noise_stdev)
+        else:
+            mt = mt.annotate_cols(y_no_noise=hl.agg.sum(mt['beta_'+tid] * mt['norm_gt']))
+            mt = mt.annotate_cols(
+                y=mt.y_no_noise + hl.rand_norm(0, hl.sqrt(1-h2[0])))
     if popstrat is not None:
         var_factor = 1 if popstrat_var is None else (
             popstrat_var**(1/2))/mt.aggregate_cols(hl.agg.stats(mt['popstrat_'+tid])).stdev
