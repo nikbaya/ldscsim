@@ -72,16 +72,15 @@ Relevant functions:
 * `multitrait_ss()`
 
 #### Annotation-Informed Betas
-&beta;<sub>j</sub> = N(0, a<sub>j</sub>h<sup>2</sup>/(Var(a<sub>j</sub>)&middot;M)
+&beta;<sub>j</sub> = N(0, a<sub>j</sub>h<sup>2</sup>/(Var(a))
 <br>
-a<sub>j</sub> = &sum;<sub>C</sub> &tau;<sub>C</sub>a<sub>Cj</sub>
+a<sub>j</sub> = &sum;<sub>C</sub> &tau;<sub>C</sub><sup>1/2</sup> a<sub>Cj</sub>
 * h<sup>2</sup> : SNP-based heritability of phenotype
 * a<sub>j</sub> : Annotation for SNP j summed across categories
-* &tau;<sub>C</sub> : Heritability contributed by annotation category C
+* &tau;<sub>C</sub> : Per-SNP heritability for annotation category C
 * a<sub>jC</sub> : Annotation for SNP j in category C
-* M : Number of SNPs in simulation
 
-The effect for SNP j are drawn from a normal distribution with mean=0, variance=a[j]&middot;h2/(Var(a[j])&middot;M), where a[j] is the relative heritability contributed by SNP j and a is a vector of the relative heritability contributed by each SNP. a[j] is calculated by taking the linear combination across all annotation categories for SNP j, scaling each annotation by coefficient &tau;<sub>C</sub>, the heritability contributed by category C.
+The effect for SNP j are drawn from a normal distribution with mean=0, variance=a[j]&middot;h2/(Var(a)), where a[j] is the relative heritability contributed by SNP j and a is a vector of the relative heritability contributed by each SNP. a[j] is calculated by taking the linear combination across all annotation categories for SNP j, scaling each annotation by coefficient &tau;<sub>C</sub><sup>1/2</sup>, where &tau;<sub>C</sub> is the per-SNP heritability for annotation category C.
 <br>
 <br>
 Relevant functions: 
