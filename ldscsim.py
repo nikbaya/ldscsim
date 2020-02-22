@@ -591,7 +591,7 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=Non
             mt = mt.annotate_cols(
                 y=mt.y_no_noise + hl.literal(h2).map(lambda x: hl.rand_norm(0, hl.sqrt(1-x))))
     else:
-        if exact_h2 and min([h2, 1-h2])!=0:
+        if exact_h2 and min([h2[0], 1-h2[0]])!=0:
             mt = mt.annotate_cols(**{'y_no_noise_'+tid: hl.agg.sum(mt['beta_'+tid] * mt['norm_gt'])})
             y_no_noise_stdev = mt.aggregate_cols(hl.agg.stats(mt['y_no_noise_'+tid]).stdev)
             mt = mt.annotate_cols(y_no_noise = hl.sqrt(h2[0])*mt['y_no_noise_'+tid]/y_no_noise_stdev) #normalize genetic component of phenotype to have variance of exactly h2
