@@ -166,9 +166,13 @@ def make_betas(mt, h2, pi=None, annot=None, rg=None):
     -------
     mt : :class:`.MatrixTable`
         :class:`.MatrixTable` with betas as a row field, simulated according to specified model.
+    pi : :obj:`list` 
+        Probability of a SNP being causal for different traits, possibly altered 
+        from input `pi` if covariance matrix for multitrait simulation was not 
+        positive semi-definite.
     rg : :obj:`list`
         Genetic correlation between traits, possibly altered from input `rg` if
-        covariance matrix was not positive semi-definite.
+        covariance matrix for multitrait simulation was not positive semi-definite.
 
     """
     h2 = h2.tolist() if type(h2) is np.ndarray else (
@@ -187,11 +191,9 @@ def make_betas(mt, h2, pi=None, annot=None, rg=None):
         assert rg == [
             None], 'Correlated traits not supported for annotation-informed model'
         h2 = h2 if type(h2) is list else [h2]
-        M = mt.count_rows()
-        annot_var = mt.aggregate_rows(hl.agg.stats(annot)).stdev**2
-        # if is_h2_normalized: scale variance of betas to be h2, else: keep unscaled variance
+        annot_sum = mt.aggregate_rows(hl.agg.sum(annot))
         mt = mt.annotate_rows(beta=hl.literal(h2).map(
-            lambda x: hl.rand_norm(0, hl.sqrt(annot*x/(annot_var*M)))))
+            lambda x: hl.rand_norm(0, hl.sqrt(annot*x/(annot_sum*M)))))
     # multi-trait correlated infinitesimal
     elif len(h2) > 1 and (pi == [None] or pi == [1]):
         mt, rg = multitrait_inf(mt=mt, h2=h2, rg=rg)
@@ -349,7 +351,7 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
     zeros = np.zeros(shape=int(M)).T
     beta_matrix = np.stack((beta, np.asarray([beta[:, 0], zeros]).T,
                             np.asarray([zeros, zeros]).T, np.asarray([zeros, beta[:, 1]]).T), axis=1)
-    idx = np.random.choice([0, 1, 2, 3], p=pi, size=int(M))
+    idx = np.random.choice([0, 1, 2, 3], p=[ptt, ptf, pft, pff], size=int(M))
     betas = beta_matrix[range(int(M)), idx, :]
     betas[:, 0] *= (h2[0]/M)**(1/2)
     betas[:, 1] *= (h2[1]/M)**(1/2)
@@ -360,7 +362,6 @@ def multitrait_ss(mt, h2, pi, rg=0, seed=None):
     mt = mt.add_row_index()
     mt = mt.annotate_rows(beta=tb[mt.row_idx]['beta'])
     return mt, pi, rg
-
 
 @typecheck(h2=oneof(list,
                     np.ndarray),
@@ -410,7 +411,6 @@ def get_cov_matrix(h2, rg, psd_rg=False):
 
     >>> cov_matrix, rg = get_cov_matrix(h2=[0.1, 0.3, 0.2, 0.6], rg=[0.4, 0.3, 0.1, 0.2, 0.15, 0.6])
     >>> print(cov_matrix)
-
     array([[0.1       , 0.06928203, 0.04242641, 0.0244949 ],
         [0.06928203, 0.3       , 0.04898979, 0.06363961],
         [0.04242641, 0.04898979, 0.2       , 0.2078461 ],
@@ -437,7 +437,7 @@ def get_cov_matrix(h2, rg, psd_rg=False):
 
     Parameters
     ----------
-    h2 : :obj:`list` or:class:`numpy.ndarray`
+    h2 : :obj:`list` or :class:`numpy.ndarray`
         :math:`h^2` values for traits. :math:`h^2` values in list should be 
         ordered by their order in the diagonal of the covariance array, reading
         from top left to bottom right.
@@ -591,7 +591,7 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=Non
             mt = mt.annotate_cols(
                 y=mt.y_no_noise + hl.literal(h2).map(lambda x: hl.rand_norm(0, hl.sqrt(1-x))))
     else:
-        if exact_h2 and min([h2, 1-h2])!=0:
+        if exact_h2:
             mt = mt.annotate_cols(**{'y_no_noise_'+tid: hl.agg.sum(mt['beta_'+tid] * mt['norm_gt'])})
             y_no_noise_stdev = mt.aggregate_cols(hl.agg.stats(mt['y_no_noise_'+tid]).stdev)
             mt = mt.annotate_cols(y_no_noise = hl.sqrt(h2[0])*mt['y_no_noise_'+tid]/y_no_noise_stdev) #normalize genetic component of phenotype to have variance of exactly h2
@@ -601,8 +601,7 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=Non
             mt = mt.annotate_cols(y=mt.y_no_noise + hl.sqrt(1-h2[0])*mt['noise_'+tid]/noise_stdev)
         else:
             mt = mt.annotate_cols(y_no_noise=hl.agg.sum(mt['beta_'+tid] * mt['norm_gt']))
-            mt = mt.annotate_cols(
-                y=mt.y_no_noise + hl.rand_norm(0, hl.sqrt(1-h2[0])))
+            mt = mt.annotate_cols(y=mt.y_no_noise + hl.rand_norm(0, hl.sqrt(1-h2[0])))
     if popstrat is not None:
         var_factor = 1 if popstrat_var is None else (
             popstrat_var**(1/2))/mt.aggregate_cols(hl.agg.stats(mt['popstrat_'+tid])).stdev
@@ -611,7 +610,6 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=Non
                               mt['popstrat_'+tid]*var_factor)
     mt = _clean_fields(mt, tid)
     return mt
-
 
 @typecheck(genotype=oneof(expr_int32,
                           expr_float64,
@@ -795,7 +793,7 @@ def get_coef_dict(tb, str_expr=None, ref_coef_dict=None, axis='rows'):
            P=oneof(int,
                    float))
 def ascertainment_bias(mt, y, P):
-    """Adds ascertainment bias to a binary phenotype such that it was sample 
+    """Adds ascertainment bias to a binary phenotype to give it a sample 
     prevalence of `P` = cases/(cases+controls).
 
     Parameters
