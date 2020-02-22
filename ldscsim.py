@@ -553,7 +553,7 @@ def calculate_phenotypes(mt, genotype, beta, h2, popstrat=None, popstrat_var=Non
         Whether to exactly simulate ratio of variance of genetic component of 
         phenotype to variance of phenotype to be h2. If `False`, ratio will be
         h2 in expectation. Observed h2 in the simulation will be close to 
-        expected h2 for large-scale simulations. If `False` simulation 
+        expected h2 for large-scale simulations.
 
     Returns
     -------
