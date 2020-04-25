@@ -72,7 +72,7 @@ Relevant functions:
 * `multitrait_ss()`
 
 #### Annotation-Informed Betas
-&beta;<sub>j</sub> = N(0, a<sub>j</sub>h<sup>2</sup>/(&sum;<sub>j</sub>a<sub>j</sub>)
+&beta;<sub>j</sub> = N(0, a<sub>j</sub>h<sup>2</sup>/(&sum;<sub>j</sub>a<sub>j</sub>))
 <br>
 a<sub>j</sub> = &sum;<sub>C</sub> &tau;<sub>C</sub> a<sub>Cj</sub>
 * h<sup>2</sup> : SNP-based heritability of phenotype
